@@ -10,7 +10,7 @@
 ## Architecture rules
 
 - All RDW logic lives in `Rdw.Core`. Front-ends (CLI, REST API, web) contain no RDW logic; they only call `IRdwClient`.
-- Decisions are recorded in `docs/adr/`. Read them before changing behavior. Key one: ADR-002 "Annotate, don't block". Reject only input that can never be a plate (fail fast, no RDW call). Never decide ourselves whether a plate is "valid"; the RDW data is the source of truth. A lookup returns a `VehicleLookupResult` with a `LookupStatus` (Found, NotFound, InvalidInput, ServiceUnavailable), never a bare null.
+- Decisions are recorded in `docs/adr/`. Read them before changing behavior. Key one: ADR-002 "Annotate, don't block". Reject only input that can never be a plate (fail fast, no RDW call); per ADR-003 that is anything not exactly six characters after normalization. Never decide ourselves whether a plate is "valid"; the RDW data is the source of truth. A lookup returns a `VehicleLookupResult` with a `LookupStatus` (Found, NotFound, InvalidInput, ServiceUnavailable), never a bare null.
 - Expected situations (bad user input, not found, RDW unreachable) are results. Programmer errors (null arguments, record without plate) throw.
 - The RDW returns every value as text. Parse in Core (`RdwValueParser`); a missing or unparseable value becomes null.
 - A significant design decision needs a new ADR (next number). Propose it before building.
@@ -47,6 +47,11 @@
 
 ## Open questions (verify against real RDW data, do not guess)
 
-- Are there valid plates shorter than 6 characters? Currently accepted, not rejected.
-- How does `export_indicator` behave in real data?
 - Plate shape recognition (sidecodes) as a neutral hint, designed after more real data; see ADR-002.
+
+## Answered questions
+
+Details, queries and counts: `docs/research/rdw-open-questions.md` (verified 2026-10-04).
+
+- Plate length: every plate in `m9d7-ebf2` is exactly six characters. Shorter or longer input is rejected (ADR-003).
+- `export_indicator`: always `Ja` or `Nee`, never missing. Exported vehicles stay in the dataset, so export never causes `NotFound`.
