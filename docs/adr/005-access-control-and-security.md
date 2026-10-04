@@ -128,7 +128,7 @@ protocol, and browser updates" [7]. For a small project with a public
 repository and a non-programmer owner, that risk and effort are not
 justified when managed providers do it as their core business.
 
-## Decision (proposed)
+## Decision
 
 **Alternative B: an external managed OpenID Connect identity provider, with
 JWT bearer validation inside the API.**
@@ -356,6 +356,22 @@ Using ASP.NET Core's built-in rate limiting middleware
   with a valid token and check that it returns 200. Also log in with a Google
   account that is not allowed and check that it returns `403 Forbidden`.
   Steps go in the README when the feature is built.
+
+### Rollout order
+
+- Build authentication and authorization first, then rate limiting, both
+  with tests. Deploy only after that.
+- First deployment: only the owner's personal Google account
+  (`Authorization:AllowedSubjects`). `Authorization:AllowedHostedDomains`
+  stays empty, so Euromaster accounts are denied.
+- The `euromaster.com` domain may only be enabled after:
+  1. the per-user and global rate limits are implemented and tested;
+  2. the owner has checked with Euromaster that using company Google
+     accounts for this API is acceptable;
+  3. the owner has confirmed that the Workspace admin settings let
+     employees sign in to this app.
+- Enabling the domain is a configuration change by the owner, not a code
+  change.
 
 ### Follow-up work (separate issues after acceptance)
 
