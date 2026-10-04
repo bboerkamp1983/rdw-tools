@@ -36,5 +36,8 @@ Then open `http://localhost:5064/api/v1/vehicles/X998ZG`.
 | Input can never be a plate | 400, problem details |
 | RDW unreachable | 503, problem details |
 
+`GET http://localhost:5064/health` returns 200 (`Healthy`) while the API is running.
+It does not call the RDW.
+
 The OpenAPI document is at `http://localhost:5064/openapi/v1.json` (Development only).
 Fields and examples: [ADR-004](docs/adr/004-rest-api.md).

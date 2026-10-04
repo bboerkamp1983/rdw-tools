@@ -129,6 +129,14 @@ Example: `GET /api/v1/vehicles/AB12` returns 400 Bad Request:
 }
 ```
 
+### Health check
+
+`GET /health` returns 200 OK with the text `Healthy` while the API process
+is running (ASP.NET Core health checks, `MapHealthChecks`). It is a liveness
+check only: it does not call the RDW, so an RDW outage does not make the API
+look down, and probing it costs the RDW nothing. Whether the RDW is reachable
+shows up as 503 on the vehicle endpoint. Added in issue #46.
+
 ### HttpClient and configuration
 
 - `RdwClient` is registered with `IHttpClientFactory`
@@ -152,8 +160,8 @@ Example: `GET /api/v1/vehicles/AB12` returns 400 Bad Request:
 
 ## Out of scope (separate issues or ADRs later)
 
-Authentication, rate limiting, caching, CORS, Docker, a health endpoint,
-HTTPS certificates for production, and a web UI.
+Authentication, rate limiting, caching, CORS, Docker, a readiness check
+that tests the RDW connection, HTTPS certificates for production, and a web UI.
 
 ## Consequences
 
