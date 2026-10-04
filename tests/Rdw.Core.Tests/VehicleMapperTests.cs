@@ -16,6 +16,8 @@ public class VehicleMapperTests
           "massa_ledig_voertuig": "1657",
           "datum_eerste_toelating": "20240320",
           "export_indicator": "Nee",
+          "inrichting": "stationwagen",
+          "toegestane_maximum_massa_voertuig": "2200",
           "wacht_op_keuren": "Geen verstrekking in Open Data"
         }
         """;
@@ -37,6 +39,18 @@ public class VehicleMapperTests
         Assert.Equal(new DateOnly(2024, 3, 20), vehicle.FirstAdmissionDate);
         Assert.Equal(new DateOnly(2028, 3, 20), vehicle.ApkExpiryDate);
         Assert.False(vehicle.IsExported);
+        Assert.Equal("stationwagen", vehicle.BodyType);
+        Assert.Equal(2200, vehicle.MaxPermittedMassKg);
+    }
+
+    [Fact]
+    public void ToVehicle_PlaceholderBodyType_IsPassedOnAsText()
+    {
+        var record = new RdwVehicleRecord { Kenteken = "AB123C", Inrichting = "Niet geregistreerd" };
+
+        var vehicle = VehicleMapper.ToVehicle(record);
+
+        Assert.Equal("Niet geregistreerd", vehicle.BodyType);
     }
 
     [Fact]
@@ -63,6 +77,8 @@ public class VehicleMapperTests
         Assert.Null(vehicle.FirstAdmissionDate);
         Assert.Null(vehicle.ApkExpiryDate);
         Assert.Null(vehicle.IsExported);
+        Assert.Null(vehicle.BodyType);
+        Assert.Null(vehicle.MaxPermittedMassKg);
     }
 
     [Fact]

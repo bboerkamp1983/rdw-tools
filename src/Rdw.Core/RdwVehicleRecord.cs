@@ -28,6 +28,12 @@ public sealed class RdwVehicleRecord
     [JsonPropertyName("vervaldatum_apk")]
     public string? VervaldatumApk { get; init; }
 
+    [JsonPropertyName("inrichting")]
+    public string? Inrichting { get; init; }
+
+    [JsonPropertyName("toegestane_maximum_massa_voertuig")]
+    public string? ToegestaneMaximumMassaVoertuig { get; init; }
+
     [JsonPropertyName("export_indicator")]
     public string? ExportIndicator { get; init; }
 }

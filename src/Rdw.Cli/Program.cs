@@ -38,7 +38,9 @@ static void PrintVehicle(Vehicle vehicle)
     Console.WriteLine($"Trade name    : {ShowText(vehicle.TradeName)}");
     Console.WriteLine($"Vehicle type  : {ShowText(vehicle.VehicleType)}");
     Console.WriteLine($"Color         : {ShowText(vehicle.PrimaryColor)}");
+    Console.WriteLine($"Body type     : {ShowText(vehicle.BodyType)}");
     Console.WriteLine($"Empty mass    : {ShowMass(vehicle.EmptyMassKg)}");
+    Console.WriteLine($"Max mass      : {ShowMass(vehicle.MaxPermittedMassKg)}");
     Console.WriteLine($"First admitted: {ShowDate(vehicle.FirstAdmissionDate)}");
     Console.WriteLine($"APK expires   : {ShowDate(vehicle.ApkExpiryDate)}");
     Console.WriteLine($"Exported      : {ShowYesNo(vehicle.IsExported)}");
