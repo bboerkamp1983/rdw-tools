@@ -24,8 +24,10 @@ public static class RateLimiting
         services.AddRateLimiter(options =>
         {
             // Per user first, then global. A time-based limiter does not give a permit back when a
-            // later limiter in the chain rejects the request, so in this order a user who is over
-            // their own limit cannot use up the global quota.
+            // later limiter in the chain rejects the request. In this order a user who is over their
+            // own limit cannot use up the global quota, which protects the RDW. The price: while the
+            // global limit is reached, a user's retries still count against their own limit, so they
+            // may wait up to one extra per-user window after the global window resets.
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
                 PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     RateLimitPartition.GetFixedWindowLimiter(
@@ -64,8 +66,8 @@ public static class RateLimiting
         var httpContext = context.HttpContext;
         var settings = Settings(httpContext);
 
-        // The limiter that rejected the request normally says how long to wait. If it does not,
-        // the longest window is always long enough.
+        // The fixed-window limiter reports its full window length, not the time left, so this is
+        // an upper bound. If no value is reported, the longest window is always long enough.
         var retryAfter = context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var wait)
             ? wait
             : TimeSpan.FromSeconds(Math.Max(settings.PerUser.WindowSeconds, settings.Global.WindowSeconds));
