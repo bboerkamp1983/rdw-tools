@@ -297,6 +297,14 @@ Using ASP.NET Core's built-in rate limiting middleware
   when the RDW's limits are known (see below). With the whole
   `euromaster.com` domain allowed, the global limit is the main protection
   of the RDW quota.
+- **Limits are per app instance.** The official documentation [3] does not
+  say whether the limits are shared between instances. The limiters keep
+  their counters in the memory of the running app, and a test
+  (`TwoAppInstances_DoNotShareLimits`) shows that two instances each have
+  their own counters. With N replicas, the global limit is effectively N
+  times the configured value. The future hosting ADR must therefore either
+  pin the maximum replica count to 1, or explicitly accept that the global
+  limit multiplies by the number of replicas.
 
 ### Cost controls
 
