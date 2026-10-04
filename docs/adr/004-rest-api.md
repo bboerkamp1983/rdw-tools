@@ -44,17 +44,83 @@ and independent of internal Core types.
 `NotFound` stays a 404 and never becomes "invalid": the RDW data is the
 source of truth (ADR-002).
 
+### Vehicle data
+
+The API returns the vehicle data that `Rdw.Core` already maps, no more and
+no less. Every field is always present; an unknown value is `null`, never
+left out.
+
+| JSON field | Type | Meaning | RDW source field |
+| --- | --- | --- | --- |
+| `licensePlate` | string | Plate as stored by the RDW, normalized (`X998ZG`) | `kenteken` |
+| `make` | string or null | Make (`KIA`) | `merk` |
+| `tradeName` | string or null | Trade name / model (`NIRO`) | `handelsbenaming` |
+| `vehicleType` | string or null | Vehicle type (`Personenauto`) | `voertuigsoort` |
+| `primaryColor` | string or null | Primary color (`GRIJS`) | `eerste_kleur` |
+| `emptyMassKg` | integer or null | Empty mass in kg (`1657`) | `massa_ledig_voertuig` |
+| `firstAdmissionDate` | date or null | Date of first admission (`2024-03-20`) | `datum_eerste_toelating` |
+| `apkExpiryDate` | date or null | APK (MOT) expiry date (`2028-03-20`) | `vervaldatum_apk` |
+| `isExported` | boolean or null | Vehicle has been exported (`Ja`/`Nee`) | `export_indicator` |
+
+- Texts are passed on as the RDW provides them (Dutch, upper case for
+  colors and makes); the API does not translate them.
+- Dates are ISO 8601 (`yyyy-MM-dd`), without time.
+- Adding a field is done in Core first (`RdwVehicleRecord`, `Vehicle`, with
+  tests), then in the API response. Adding a field is a compatible change
+  within `v1`; renaming or removing one needs `v2`.
+- Data from other RDW datasets (fuel, APK history, recalls) is out of scope
+  for this ADR.
+
 ### Response shape
 
 - Success: a `VehicleResponse` defined in `Rdw.Api`, serialized as camelCase
-  JSON. It copies the fields of `Core.Vehicle` (plate, make, trade name,
-  vehicle type, color, empty mass, first admission date, APK expiry date,
-  `isExported`). Dates use ISO 8601 (`2028-03-20`); unknown values are
-  `null`, never left out. A separate type keeps renaming inside Core from
-  silently changing the public API. Mapping is a plain copy, not RDW logic.
+  JSON with exactly the fields above. A separate type keeps renaming inside
+  Core from silently changing the public API. Mapping is a plain copy, not
+  RDW logic.
 - Errors: RFC 9457 Problem Details (`application/problem+json`), built into
-  ASP.NET Core. `detail` carries the `Message` from the lookup result; the
-  normalized plate is included for 404.
+  ASP.NET Core. For 400 and 503, `detail` carries the `Message` from the
+  lookup result. A `NotFound` result has no message, so for 404 the API uses
+  a fixed text (as the CLI does) and adds the normalized plate as
+  `licensePlate`.
+
+Example: `GET /api/v1/vehicles/x-998-zg` returns 200 OK:
+
+```json
+{
+  "licensePlate": "X998ZG",
+  "make": "KIA",
+  "tradeName": "NIRO",
+  "vehicleType": "Personenauto",
+  "primaryColor": "GRIJS",
+  "emptyMassKg": 1657,
+  "firstAdmissionDate": "2024-03-20",
+  "apkExpiryDate": "2028-03-20",
+  "isExported": false
+}
+```
+
+Example: `GET /api/v1/vehicles/ZZ-999-Z` returns 404 Not Found:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+  "title": "Vehicle not found",
+  "status": 404,
+  "detail": "No vehicle found for ZZ999Z in the RDW open data.",
+  "licensePlate": "ZZ999Z"
+}
+```
+
+Example: `GET /api/v1/vehicles/AB12` returns 400 Bad Request:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Invalid license plate",
+  "status": 400,
+  "detail": "The input can never be a license plate (a plate has exactly six letters or digits, separators not counted)."
+}
+```
 
 ### HttpClient and configuration
 
