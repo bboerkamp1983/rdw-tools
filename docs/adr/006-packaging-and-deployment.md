@@ -136,8 +136,8 @@ are a target amount, not a guarantee" [4]. Consequences:
   bound is itself approximate: during deployments and maintenance more
   replicas can run for a short time [4][5].
 - The cap does **not** bound request charges (requests above the free
-  2 million a month [15]) or log ingestion. The budget alert and the off switch cover
-  those.
+  2 million a month [15]) or log ingestion. The budget alert and the off
+  switch cover those.
 
 How it is checked:
 
@@ -318,19 +318,75 @@ variables is **not verified** in the documentation; the manual checks (401,
   [17].
 
 Ingress is an application-wide setting: "Changes to ingress settings apply to
-all revisions simultaneously, and don't generate new revisions" [17]. With
-ingress disabled and a minimum of 0 replicas, the app "scales to zero and has
-no way of starting back up" [4], so compute charges stop after the cool down
-period (300 seconds [4]).
+all revisions simultaneously, and don't generate new revisions" [17]. The
+scale and container settings of the revision are not touched.
 
-To turn it back on:
-`az containerapp ingress enable -n <app> -g <rg> --type external --target-port 8080 --transport auto`
-[24]. HTTP stays redirected to HTTPS because `--allow-insecure` is not passed
-(default `false` [24]).
+### The scale-to-zero warning
 
-Not verified: **how quickly** disabling takes effect, and what a caller sees
-afterwards. The documentation gives no duration and no status code; the
-manual check records what happens.
+The scaling documentation warns: "Make sure you create a scale rule or set
+`minReplicas` to 1 or more if you don't enable ingress. If ingress is
+disabled and you don't define a `minReplicas` or a custom scale rule, your
+container app scales to zero and has no way of starting back up" [4].
+
+Our app matches that case while it is offline: no custom scale rule (only
+the default HTTP rule [4]) and a minimum of 0 replicas. We set `minReplicas`
+to 0 explicitly, but 0 is also the default [4], so we assume the warning
+applies (**not verified** whether an explicit 0 counts as "defined").
+
+How the procedure deals with it:
+
+- **While offline, this is the intended effect**: no replica runs, so
+  compute charges stop after the cool down period (300 seconds [4]). We do
+  **not** set `minReplicas` to 1 while offline: that would keep a replica
+  running and billed with nothing able to reach it.
+- **The warning is about staying at zero while ingress is disabled.**
+  Turning the app back on therefore always starts with re-enabling ingress,
+  so HTTP requests reach the app again and the default HTTP scale rule can
+  start a replica. The documentation implies this (the warning applies when
+  ingress is disabled) but does not state it; **not verified**. The check
+  below (`/health` answers `200`) proves it each time.
+- If `/health` does not answer after re-enabling: run
+  `az containerapp revision list -n <app> -g <rg>` [22] to see the revision's
+  running status ("Scale to 0", "Activating", "Activation failed" [5]), and
+  restart it with
+  `az containerapp revision restart -n <app> -g <rg> --revision <revision>`
+  [22]. Whether a restart starts a replica in this situation was **not
+  verified**. Do not change `--min-replicas` to get out of it; if a
+  temporary `--min-replicas 1` is ever used, set it back to 0 and run the
+  replica check.
+
+### Turning the app back on
+
+**Re-enable ingress** with the same settings as at creation:
+
+- CLI:
+  `az containerapp ingress enable -n <app> -g <rg> --type external --target-port 8080 --transport auto`
+  [24]. This follows the documented example of `az containerapp ingress
+  enable` [24], without `--allow-insecure`, so HTTP stays redirected to
+  HTTPS (default `false` [24]).
+- Portal: container app > **Settings > Ingress**, set **Ingress** to
+  **Enabled**, select **Accepting traffic from anywhere**, **Ingress type**
+  **HTTP**, **Transport** **Auto**, leave **Insecure connections** cleared,
+  **Target port** `8080`, **Save** [17].
+
+**Check afterwards** (also in Manual checks):
+
+| Check | Expected |
+| --- | --- |
+| `curl -i https://<host>/health` | `200`, `Healthy`. The first request may be slow (cold start); retry for a few minutes before treating it as failed. |
+| `az containerapp ingress show -n <app> -g <rg>` [24] | `external` is `true`, `targetPort` is `8080`, `allowInsecure` is `false`, `transport` is `Auto` (property names as in the ingress settings [17]) |
+| `az containerapp show -n <app> -g <rg> --query "properties.template.scale"` | `minReplicas` 0, `maxReplicas` 1 |
+| `curl -i https://<host>/api/v1/vehicles/X998ZG` (no credentials) | `401` (the lock is still in place) |
+
+Not verified:
+
+- **How quickly** disabling and re-enabling take effect, and what a caller
+  sees while ingress is disabled. The documentation gives no duration and no
+  status code; the manual check records what happens.
+- That `ingress enable` restores the **same address** (`<host>`) as before.
+  The `/health` check on the old address shows it.
+- The exact layout and letter case of the `ingress show` output (for example
+  `Auto` or `auto`); the CLI reference shows no sample output.
 
 Options considered and **not** used:
 
@@ -463,7 +519,7 @@ With `<host>` the app's address:
 | Subscription > Access control (IAM) > Role assignments | one Owner (the owner's personal account), no other assignments |
 | Microsoft account security page | two-step verification is on |
 | Off switch: `az containerapp ingress disable ...`, then `curl -i https://<host>/health` | no `200` from the app; record what is returned and after how long |
-| Turn back on: `az containerapp ingress enable ...`, then `curl -i https://<host>/health` | `200`, `Healthy` (the first request may be slow: cold start) |
+| Turn back on: `az containerapp ingress enable ...`, then the four checks in "Turning the app back on" | `/health` `200`; ingress external, target port 8080, insecure off; `minReplicas` 0, `maxReplicas` 1; no credentials gives `401` |
 | Rollback: `az containerapp update ... --image <previous tag> --min-replicas 0 --max-replicas 1`, then the first four rows | same results as above; `az containerapp show` shows the previous tag |
 
 The off switch and rollback checks are done once at the first deployment, so
@@ -509,8 +565,15 @@ the owner has used both before they are needed.
   URIs are needed): part of issue #65.
 - **Automatic deployment from GitHub to Azure** (for example with federated
   credentials) was not researched; it is out of scope.
-- **Off switch timing and response**: how quickly disabling ingress takes
-  effect and what a caller then receives.
+- **Off switch timing and response**: how quickly disabling and
+  re-enabling ingress take effect, what a caller receives while ingress is
+  disabled, and whether the address stays the same.
+- **Starting again after scale to zero**: that re-enabling ingress lets the
+  default HTTP rule start a replica again (implied, not stated, by the
+  scaling documentation); whether an explicit `minReplicas` of 0 counts as
+  "defined" in its warning; whether `revision restart` helps if it does not
+  start. The `/health` check after re-enabling shows the first point.
+- **`ingress show` output**: exact layout and letter case.
 - **Rollback keeps environment variables**: whether `az containerapp update`
   with only `--image` keeps them; the exact field path of the image in
   `revision list` output.
