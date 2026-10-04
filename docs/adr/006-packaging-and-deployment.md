@@ -1,8 +1,15 @@
 # ADR-006: Packaging and deployment
 
-- Status: Proposed
-- Date: 2026-10-04
+- Status: Accepted
+- Date: 2026-10-04 (proposed and accepted)
 - Relates to: ADR-004 (REST API), ADR-005 (access control and security)
+
+The owner accepted this ADR with the answers in "Owner decisions" and asked for
+four additions before acceptance: replica limits as a target
+("Replica count"), rollback and an off switch ("Rollback and taking the app
+offline"), owner account security ("Owner account and subscription access"),
+and the behavior when Google's keys cannot be fetched ("When Google's signing
+keys cannot be fetched").
 
 ## Context
 
@@ -39,7 +46,7 @@
 
 ## Packaging alternatives
 
-### A. Container image built by the .NET SDK, without a Dockerfile (recommended)
+### A. Container image built by the .NET SDK, without a Dockerfile (chosen)
 
 `dotnet publish --os linux --arch x64 /t:PublishContainer` builds an image
 straight from the project. "The .NET SDK creates container images without
@@ -86,7 +93,7 @@ secrets and no personal data.
 
 ## Replica count
 
-**Decision (proposed): at most one replica.** Minimum 0 (scale to zero),
+**Decision: at most one replica.** Minimum 0 (scale to zero),
 maximum 1.
 
 - The platform default is **10** maximum replicas [4], so the maximum must be
@@ -108,6 +115,29 @@ Known exceptions, accepted:
 So for short periods the effective global limit can be up to twice the
 configured value. This is accepted: the periods are short and rare, and a
 scale-out to more replicas cannot happen through load.
+
+### The limit is a target, not a guarantee
+
+The scaling documentation lists as a known limitation: "Replica quantities
+are a target amount, not a guarantee" [4]. Consequences:
+
+- **The global rate limit is best-effort protection of the RDW.** It assumes
+  one replica, and the platform does not promise that. It must not be the
+  only protection. The other layers are: the allow-list (at first only the
+  owner's account, ADR-005), the per-user limit, the 15-second timeout on RDW
+  calls, the off switch below, and the open work on the RDW's own fair-use
+  rules (#66) and a load test (#67).
+- **The replica cap bounds the worst-case compute cost.** Billing is per
+  replica: vCPU-seconds and GiB-seconds while a replica runs [15]. With at
+  most one replica of 0.25 vCPU and 0.5 GiB, a full month (30 days) of
+  continuous running is at most 648,000 vCPU-seconds and 1,296,000
+  GiB-seconds, of which 180,000 and 360,000 are in the free grant [15]. The
+  euro amount above the grant was **not verified** (see Cost control). This
+  bound is itself approximate: during deployments and maintenance more
+  replicas can run for a short time [4][5].
+- The cap does **not** bound request charges (requests above the free
+  2 million a month [15]) or log ingestion. The budget alert and the off switch cover
+  those.
 
 How it is checked:
 
@@ -146,11 +176,11 @@ Notes:
   container sees a new value [6].
 - Roles such as **Container Apps Contributor** and **Container Apps Operator**
   can read secret values in plain text [6]. Only the owner gets access to the
-  subscription.
+  subscription (see "Owner account and subscription access").
 - Azure documentation advises Key Vault references instead of direct secret
   values in production [6]. There is no real secret yet (no RDW app token,
-  no client secret), so this ADR proposes Container Apps secrets now and Key
-  Vault when the first real secret arrives (open question Q3).
+  no client secret), so this ADR uses Container Apps secrets now and Key
+  Vault when the first real secret arrives (decision Q3).
 - `ASPNETCORE_ENVIRONMENT` is not set, so the app runs as `Production` ("If
   the environment isn't set, it defaults to the `Production` environment"
   [20]): user secrets are not loaded and the OpenAPI document is not served.
@@ -169,10 +199,12 @@ ADR-005. It costs nothing, needs no secret on either side, and fits a public
 repository. Either way the image must contain no secrets; with a public image
 this is simply visible to everyone.
 
-## CI (proposal only; `.github` is not changed by this ADR)
+## CI (`.github` is not changed by this ADR)
 
-Proposed addition to the existing workflow, after owner approval in a
-separate PR:
+Accepted (Q2): CI publishes an image, it does not deploy. The workflow change
+is made in a **separate PR** that the owner approves, not in the PR of this
+ADR. Until then, the first deployment may use an image the owner builds and
+pushes by hand (First deployment, step 5). The change:
 
 - A job that runs **only on pushes to `main`**, after `build-and-test` has
   passed.
@@ -196,7 +228,7 @@ through diagnostic settings" [11]. The HTTP log schema includes `Path`
 ("Request path including query string") and `XForwardedFor` ("Contains
 end-user IPs, so treat as PII") [11]. On our API the path contains the plate.
 
-Proposal:
+Decision (Q6):
 
 - **Do not enable HTTP logs.** Do not create diagnostic settings that send
   them anywhere. Then no plate and no client IP is stored by the platform.
@@ -208,7 +240,7 @@ Proposal:
   [13]. Shorter is possible (down to 4 days), but "lowering the retention
   period below 31 days doesn't reduce costs" [13]. The alternative "Don't
   save logs" stores nothing but leaves only the live log stream for
-  troubleshooting [12] (open question Q6).
+  troubleshooting [12]; not chosen.
 
 How to check, after the first deployment and after any logging change:
 
@@ -224,7 +256,7 @@ How to check, after the first deployment and after any logging change:
 ## Cost control
 
 - **Budget alert**: a monthly budget on the subscription with email alerts
-  (proposed: 10 euro, alerts at 50%, 80% and 100% of actual cost, and 100% of
+  (decision Q5: 10 euro, alerts at 50%, 80% and 100% of actual cost, and 100% of
   forecast). A budget does **not** stop spending: "Resources aren't affected,
   and your consumption isn't stopped". Cost data "is typically available
   within 8-24 hours", and a new subscription can take "up to 48 hours" before
@@ -247,16 +279,147 @@ How to check, after the first deployment and after any logging change:
   prices were not verified**: the pricing pages showed placeholders [8][16].
   The budget alert is the safety net.
 
+## Rollback and taking the app offline
+
+Every command here changes Azure resources, so Azure asks for multifactor
+authentication [23]. The owner needs their second factor at hand to use the
+off switch.
+
+### Rollback to the previous image
+
+Changing the image is a revision-scope change: it creates a new revision [5].
+In single revision mode the old revision keeps all traffic until the new one
+is ready, and "If an update fails, traffic remains pointed to the old
+revision" [5].
+
+1. Find the previous image tag:
+   `az containerapp revision list -n <app> -g <rg> --all`
+   (`--all` "Show inactive revisions" [22]). The image of each revision is in
+   its container settings (`properties.template.containers`; the exact field
+   path in the CLI output is **not verified**).
+2. Deploy that tag again, with the replica limits passed explicitly (see
+   Replica count):
+   `az containerapp update -n <app> -g <rg> --image ghcr.io/<owner>/rdw-tools-api:<previous-sha> --min-replicas 0 --max-replicas 1`
+   [21].
+3. Run the manual checks.
+
+Rollback needs the old image: **old package versions in GHCR are not
+deleted.** Secrets are application-scope and are not changed by a rollback
+[5]. Whether `update` with only `--image` keeps the existing environment
+variables is **not verified** in the documentation; the manual checks (401,
+200, 403) show it.
+
+### Off switch: stop all traffic
+
+**Disable ingress** [17][24]:
+
+- CLI: `az containerapp ingress disable -n <app> -g <rg>` [24]
+- Portal: container app > **Settings > Ingress**, clear **Enabled**, **Save**
+  [17].
+
+Ingress is an application-wide setting: "Changes to ingress settings apply to
+all revisions simultaneously, and don't generate new revisions" [17]. With
+ingress disabled and a minimum of 0 replicas, the app "scales to zero and has
+no way of starting back up" [4], so compute charges stop after the cool down
+period (300 seconds [4]).
+
+To turn it back on:
+`az containerapp ingress enable -n <app> -g <rg> --type external --target-port 8080 --transport auto`
+[24]. HTTP stays redirected to HTTPS because `--allow-insecure` is not passed
+(default `false` [24]).
+
+Not verified: **how quickly** disabling takes effect, and what a caller sees
+afterwards. The documentation gives no duration and no status code; the
+manual check records what happens.
+
+Options considered and **not** used:
+
+- `--max-replicas 0`: not allowed, the minimum value for maximum replicas
+  is 1 [4].
+- `az containerapp stop`: not found in the official Azure CLI reference for
+  `az containerapp` [21] (checked 2026-10-04). Not relied on.
+- `az containerapp revision deactivate` [22]: the revisions documentation
+  describes activating and deactivating for multiple revision mode [5]; the
+  effect in single revision mode was **not verified**.
+- Last resort: delete the container app. It also removes its secrets and
+  configuration, so the first-deployment steps must be repeated.
+
+## Owner account and subscription access
+
+**Before creating the subscription**, the owner turns on two-step
+verification on the personal Microsoft account [25]:
+<https://account.microsoft.com/security> > **Manage how I sign in** >
+**Additional security** > **Two-step verification** > **Turn on**.
+
+- Keep "three pieces of security info associated with your account". Losing
+  the second factor can mean "it can take you 30 days to regain access" [25],
+  and during that time the off switch cannot be used.
+- Azure itself requires multifactor authentication for the Azure portal and
+  for create, update and delete operations from the Azure CLI, with no way to
+  opt out [23]. Turning it on first means the account is protected before the
+  subscription exists, rather than relying on Azure's prompt. **Not
+  verified**: the enforcement page describes Microsoft Entra tenants; it does
+  not mention personal Microsoft accounts specifically.
+
+**Who gets access**: only the owner's personal Microsoft account, as the one
+**Owner** of the subscription. No other users, no guests, no Euromaster
+account, no service principals or managed identities with a role on the
+subscription, and no Azure credentials in GitHub (CI only pushes to GHCR).
+Claude and other AI agents get no Azure access; they do not run `az`
+commands. This follows least privilege and stays under Microsoft's advice of
+"a maximum of 3 subscription owners" [26]; it also matters because
+Container Apps Contributor and Operator can read secrets in plain text [6].
+
+Check (Manual checks): Subscriptions > the subscription > **Access control
+(IAM)** > **Role assignments** shows one Owner, the owner's account, and no
+other assignments [27]. **Not verified**: that the account that creates a
+personal subscription automatically gets the Owner role; the check shows it.
+
+## When Google's signing keys cannot be fetched
+
+The API does not contain Google's keys. On the first request that carries a
+bearer token (not at startup), it downloads Google's discovery document
+(`https://accounts.google.com/.well-known/openid-configuration`) and the keys
+it points to. Google rotates these keys; "examine the `Cache-Control` header
+in the response to determine when you should retrieve them again" [28]. After
+a scale to zero or a restart the keys are fetched again.
+
+Microsoft's documentation does not describe what happens when this download
+fails. **Observed behavior** (local experiment on 2026-10-04, not part of the
+repository; the production configuration with Google's address replaced by a
+fake handler that threw a connection error, or answered `503`; resolved
+package version Microsoft.IdentityModel.Protocols.OpenIdConnect 8.19.2):
+
+| Request while Google is unreachable | Result |
+| --- | --- |
+| No token | `401`; no download attempted |
+| `/health` | `200` |
+| Valid token | `401`, empty body; RDW not called. Logged at Information level as `IDX10500: ... No security keys were provided` |
+| Same token again | `401`; the download is attempted again |
+| Same token after Google is reachable again | Normal answer; no restart needed |
+
+So the API **fails closed**: it answers `401`, never `200` and not `500`.
+Downsides: a user with a valid token sees `401` as if the token were wrong,
+and the log does not say that Google was unreachable (relevant to #63). The
+extra delay on the first request after a cold start was **not measured**.
+
+**A test is needed**: this is library behavior, not our code, and a package
+update could change it. Issue #70 adds a regression test with a fake
+backchannel (no call to Google) and is a prerequisite for the first
+deployment.
+
 ## First deployment (owner's personal account only)
 
-Prerequisites: issue #65 (a real Google ID token works locally) is done, and
-this ADR is accepted. All values in `<angle brackets>` are filled in by the
-owner and never committed.
+Prerequisites: issue #65 (a real Google ID token works locally) and issue #70
+(key-fetch failure test) are done. All values in `<angle brackets>` are
+filled in by the owner and never committed.
 
-1. **Subscription**: create an Azure subscription with a personal Microsoft
-   account (not the Euromaster account). Create the monthly budget alert
-   (Cost control).
-2. **Resource group** in the chosen EU region:
+1. **Account and subscription**: turn on two-step verification on the
+   personal Microsoft account (not the Euromaster account) first (Owner
+   account and subscription access). Then create the Azure subscription with
+   that account and create the monthly budget alert (Cost control).
+2. **Resource group** in West Europe (Q4), which is in the Netherlands
+   (paired region North Europe, in Ireland) [29]:
    `az group create -n <rg> -l westeurope`
 3. **Log Analytics workspace** in the same region; set retention to 30 days
    and `immediatePurgeDataOn30Days` to `true` [13].
@@ -297,15 +460,23 @@ With `<host>` the app's address:
 | `az containerapp show ... --query properties.template.scale` | `minReplicas` 0, `maxReplicas` 1 |
 | Logging checks 1-4 above | no HTTP logs, no plate in logs, 30 days retention |
 | Budget | exists, with the owner's email address |
+| Subscription > Access control (IAM) > Role assignments | one Owner (the owner's personal account), no other assignments |
+| Microsoft account security page | two-step verification is on |
+| Off switch: `az containerapp ingress disable ...`, then `curl -i https://<host>/health` | no `200` from the app; record what is returned and after how long |
+| Turn back on: `az containerapp ingress enable ...`, then `curl -i https://<host>/health` | `200`, `Healthy` (the first request may be slow: cold start) |
+| Rollback: `az containerapp update ... --image <previous tag> --min-replicas 0 --max-replicas 1`, then the first four rows | same results as above; `az containerapp show` shows the previous tag |
 
-## Open questions for the owner
+The off switch and rollback checks are done once at the first deployment, so
+the owner has used both before they are needed.
 
-| # | Question | Recommended default |
+## Owner decisions
+
+| # | Question | Decision |
 | --- | --- | --- |
 | Q1 | Image registry? | GHCR, public package. |
-| Q2 | Should CI publish an image on every push to `main` (needs a `.github` change)? | Yes, publish only; deploy by hand. |
+| Q2 | Should CI publish an image on every push to `main`? | Yes, publish only, no automatic deployment. The `.github` change is a separate PR. The first deployment may be done by hand. |
 | Q3 | Key Vault now? | No. Container Apps secrets for the allow-list; Key Vault when the first real secret (for example the RDW app token) is added. |
-| Q4 | Region? | West Europe. Both EU regions satisfy ADR-005; no other difference was checked. |
+| Q4 | Region? | West Europe (`westeurope`), physical location the Netherlands, geography Europe, paired region North Europe (Ireland) [29]. |
 | Q5 | Budget amount and alerts? | 10 euro per month; actual cost at 50/80/100%, forecast at 100%. |
 | Q6 | Store logs? | Log Analytics, 30 days, immediate purge; no HTTP logs. |
 | Q7 | Accept cold starts? | Yes, minimum 0 replicas. Revisit if it bothers users. |
@@ -338,6 +509,22 @@ With `<host>` the app's address:
   URIs are needed): part of issue #65.
 - **Automatic deployment from GitHub to Azure** (for example with federated
   credentials) was not researched; it is out of scope.
+- **Off switch timing and response**: how quickly disabling ingress takes
+  effect and what a caller then receives.
+- **Rollback keeps environment variables**: whether `az containerapp update`
+  with only `--image` keeps them; the exact field path of the image in
+  `revision list` output.
+- **`az containerapp stop`** is not in the official CLI reference;
+  **`revision deactivate`** in single revision mode was not checked.
+- **Mandatory Azure MFA for personal Microsoft accounts**: the enforcement
+  page describes Entra tenants only. And whether the creator of a personal
+  subscription automatically becomes Owner.
+- **Key-fetch failure behavior** is observed in a local experiment with one
+  package version, not documented by Microsoft; issue #70 turns it into a
+  test. The cold-start delay of the first key download was not measured.
+- **Euro cost of the worst case** (one replica running all month): the
+  amounts in vCPU-seconds and GiB-seconds are computed, the prices are not
+  verified.
 
 ## Sources
 
@@ -363,3 +550,12 @@ Accessed 2026-10-04.
 18. Microsoft Learn, "Health probes in Azure Container Apps" (updated 2025-11-06): <https://learn.microsoft.com/azure/container-apps/health-probes>
 19. Microsoft Learn, "Safe storage of app secrets in development in ASP.NET Core" (updated 2026-05-13): <https://learn.microsoft.com/aspnet/core/security/app-secrets>
 20. Microsoft Learn, "ASP.NET Core runtime environments" (updated 2026-05-29): <https://learn.microsoft.com/aspnet/core/fundamentals/environments>
+21. Microsoft Learn, Azure CLI reference, "az containerapp": <https://learn.microsoft.com/cli/azure/containerapp>
+22. Microsoft Learn, Azure CLI reference, "az containerapp revision": <https://learn.microsoft.com/cli/azure/containerapp/revision>
+23. Microsoft Learn, "Plan for mandatory Microsoft Entra multifactor authentication (MFA)" (updated 2026-04-03): <https://learn.microsoft.com/entra/identity/authentication/concept-mandatory-multifactor-authentication>
+24. Microsoft Learn, Azure CLI reference, "az containerapp ingress": <https://learn.microsoft.com/cli/azure/containerapp/ingress>
+25. Microsoft Support, "How to use two-step verification with your Microsoft account": <https://support.microsoft.com/help/12408>
+26. Microsoft Learn, "Best practices for Azure RBAC" (updated 2025-03-30): <https://learn.microsoft.com/azure/role-based-access-control/best-practices>
+27. Microsoft Learn, "List Azure role assignments using the Azure portal" (updated 2025-10-15): <https://learn.microsoft.com/azure/role-based-access-control/role-assignments-list-portal>
+28. Google for Developers, "Verify the Google ID token on your server side" (last updated 2025-12-22): <https://developers.google.com/identity/gsi/web/guides/verify-google-id-token>
+29. Microsoft Learn, "List of Azure regions" (updated 2025-09-23): <https://learn.microsoft.com/azure/reliability/regions-list>
