@@ -45,6 +45,14 @@ public class VehicleLookupResultTests
     }
 
     [Fact]
+    public void InvalidInput_MessageUsesConfiguredPlateLength()
+    {
+        var result = VehicleLookupResult.InvalidInput();
+
+        Assert.Contains($"exactly {LicensePlateNormalizer.PlateLength} letters or digits", result.Message);
+    }
+
+    [Fact]
     public void ServiceUnavailable_KeepsMessage()
     {
         var result = VehicleLookupResult.ServiceUnavailable("Timeout while calling the RDW.");

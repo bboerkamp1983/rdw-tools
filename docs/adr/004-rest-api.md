@@ -123,7 +123,7 @@ Example: `GET /api/v1/vehicles/AB12` returns 400 Bad Request:
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
   "title": "Invalid license plate",
   "status": 400,
-  "detail": "The input can never be a license plate (a plate has exactly six letters or digits, separators not counted)."
+  "detail": "The input can never be a license plate (a plate has exactly 6 letters or digits, separators not counted)."
 }
 ```
 

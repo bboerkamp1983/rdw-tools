@@ -29,6 +29,18 @@ public class LicensePlateNormalizerTests
         Assert.Equal(expected, normalized);
     }
 
+    [Fact]
+    public void TryNormalize_FollowsConfiguredPlateLength()
+    {
+        var exact = new string('A', LicensePlateNormalizer.PlateLength);
+        var shorter = new string('A', LicensePlateNormalizer.PlateLength - 1);
+        var longer = new string('A', LicensePlateNormalizer.PlateLength + 1);
+
+        Assert.True(LicensePlateNormalizer.TryNormalize(exact, out _));
+        Assert.False(LicensePlateNormalizer.TryNormalize(shorter, out _));
+        Assert.False(LicensePlateNormalizer.TryNormalize(longer, out _));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
