@@ -2,9 +2,14 @@ namespace Rdw.Core.Tests;
 
 internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 {
-    private readonly Func<HttpRequestMessage, HttpResponseMessage> _respond;
+    private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _respond;
 
     public FakeHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> respond)
+        : this((request, _) => Task.FromResult(respond(request)))
+    {
+    }
+
+    public FakeHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond)
     {
         _respond = respond;
     }
@@ -17,6 +22,6 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
     {
         RequestedUris.Add(request.RequestUri!);
 
-        return Task.FromResult(_respond(request));
+        return _respond(request, cancellationToken);
     }
 }

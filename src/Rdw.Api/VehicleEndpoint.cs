@@ -4,9 +4,13 @@ namespace Rdw.Api;
 
 public static class VehicleEndpoint
 {
-    public static async Task<IResult> GetVehicleAsync(string licensePlate, IRdwClient rdwClient)
+    public static async Task<IResult> GetVehicleAsync(
+        string licensePlate,
+        IRdwClient rdwClient,
+        CancellationToken cancellationToken)
     {
-        var result = await rdwClient.GetVehicleAsync(licensePlate);
+        // Minimal APIs bind CancellationToken to HttpContext.RequestAborted: a client disconnect cancels the lookup.
+        var result = await rdwClient.GetVehicleAsync(licensePlate, cancellationToken);
 
         return result.Status switch
         {

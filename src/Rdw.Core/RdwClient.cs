@@ -15,7 +15,9 @@ public sealed class RdwClient : IRdwClient
         _httpClient = httpClient;
     }
 
-    public async Task<VehicleLookupResult> GetVehicleAsync(string? licensePlate)
+    public async Task<VehicleLookupResult> GetVehicleAsync(
+        string? licensePlate,
+        CancellationToken cancellationToken = default)
     {
         if (!LicensePlateNormalizer.TryNormalize(licensePlate, out var plate))
         {
@@ -26,7 +28,7 @@ public sealed class RdwClient : IRdwClient
 
         try
         {
-            using var response = await _httpClient.GetAsync(uri);
+            using var response = await _httpClient.GetAsync(uri, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -34,8 +36,8 @@ public sealed class RdwClient : IRdwClient
                     $"The RDW answered with status {(int)response.StatusCode} ({response.StatusCode}).");
             }
 
-            await using var stream = await response.Content.ReadAsStreamAsync();
-            var records = await JsonSerializer.DeserializeAsync<List<RdwVehicleRecord>>(stream);
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            var records = await JsonSerializer.DeserializeAsync<List<RdwVehicleRecord>>(stream, cancellationToken: cancellationToken);
 
             if (records is null || records.Count == 0)
             {
@@ -48,8 +50,10 @@ public sealed class RdwClient : IRdwClient
         {
             return VehicleLookupResult.ServiceUnavailable($"The RDW could not be reached: {ex.Message}");
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            // Cancelled without the caller asking for it: the HttpClient timeout expired.
+            // A cancellation by the caller is not caught and reaches the caller.
             return VehicleLookupResult.ServiceUnavailable("The request to the RDW timed out.");
         }
         catch (JsonException)

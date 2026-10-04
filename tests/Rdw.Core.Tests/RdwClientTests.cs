@@ -106,6 +106,39 @@ public class RdwClientTests
         Assert.False(string.IsNullOrWhiteSpace(result.Message));
     }
 
+    [Fact]
+    public async Task GetVehicleAsync_CallerCancels_ThrowsOperationCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        var handler = new FakeHttpMessageHandler(async (_, token) =>
+        {
+            cts.Cancel();
+            await Task.Delay(Timeout.Infinite, token);
+            return JsonResponse(KiaJsonArray);
+        });
+        var client = new RdwClient(new HttpClient(handler));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => client.GetVehicleAsync("X998ZG", cts.Token));
+    }
+
+    [Fact]
+    public async Task GetVehicleAsync_HttpClientTimeout_ReturnsServiceUnavailable()
+    {
+        var handler = new FakeHttpMessageHandler(async (_, token) =>
+        {
+            await Task.Delay(Timeout.Infinite, token);
+            return JsonResponse(KiaJsonArray);
+        });
+        var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        var client = new RdwClient(httpClient);
+
+        var result = await client.GetVehicleAsync("X998ZG", CancellationToken.None);
+
+        Assert.Equal(LookupStatus.ServiceUnavailable, result.Status);
+        Assert.Contains("timed out", result.Message);
+    }
+
     private static HttpResponseMessage JsonResponse(string json)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)

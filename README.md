@@ -21,6 +21,8 @@ dotnet test
 dotnet run --project src/Rdw.Cli -- kenteken X998ZG
 ```
 
+Ctrl+C cancels a running lookup (exit code 130).
+
 ## REST API
 
 ```sh

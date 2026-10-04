@@ -148,6 +148,24 @@ public class VehicleEndpointTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
+    public async Task ClientDisconnect_CancelsTheLookup()
+    {
+        var waiting = new WaitingRdwClient();
+        var httpClient = _factory
+            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+                services.AddSingleton<IRdwClient>(waiting)))
+            .CreateClient();
+        using var cts = new CancellationTokenSource();
+
+        var request = httpClient.GetAsync("/api/v1/vehicles/X998ZG", cts.Token);
+        await waiting.Started.WaitAsync(TimeSpan.FromSeconds(10));
+        cts.Cancel();
+
+        await waiting.Cancelled.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
+    }
+
+    [Fact]
     public void RealClient_IsRegistered()
     {
         using var scope = _factory.Services.CreateScope();
