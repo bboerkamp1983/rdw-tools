@@ -6,11 +6,11 @@ using Rdw.Core;
 
 namespace Rdw.Api.Tests;
 
-public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests : IClassFixture<ApiTestFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly ApiTestFactory _factory;
 
-    public HealthEndpointTests(WebApplicationFactory<Program> factory)
+    public HealthEndpointTests(ApiTestFactory factory)
     {
         _factory = factory;
     }
