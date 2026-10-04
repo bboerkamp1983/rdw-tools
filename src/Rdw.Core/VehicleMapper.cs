@@ -21,6 +21,7 @@ public static class VehicleMapper
             EmptyMassKg = RdwValueParser.ParseInt(record.MassaLedigVoertuig),
             FirstAdmissionDate = RdwValueParser.ParseDate(record.DatumEersteToelating),
             ApkExpiryDate = RdwValueParser.ParseDate(record.VervaldatumApk),
+            IsExported = RdwValueParser.ParseYesNo(record.ExportIndicator),
         };
     }
 }

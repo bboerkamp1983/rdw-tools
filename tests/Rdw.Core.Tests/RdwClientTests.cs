@@ -36,6 +36,21 @@ public class RdwClientTests
     }
 
     [Fact]
+    public async Task GetVehicleAsync_ExportedVehicle_ReturnsFoundAndIsExported()
+    {
+        const string exportedJsonArray = """
+            [{ "kenteken": "TGNJ53", "merk": "TOYOTA", "export_indicator": "Ja" }]
+            """;
+        var handler = new FakeHttpMessageHandler(_ => JsonResponse(exportedJsonArray));
+        var client = new RdwClient(new HttpClient(handler));
+
+        var result = await client.GetVehicleAsync("TG-NJ-53");
+
+        Assert.Equal(LookupStatus.Found, result.Status);
+        Assert.True(result.Vehicle?.IsExported);
+    }
+
+    [Fact]
     public async Task GetVehicleAsync_UnknownPlate_ReturnsNotFound()
     {
         var handler = new FakeHttpMessageHandler(_ => JsonResponse("[]"));

@@ -47,4 +47,28 @@ public class RdwValueParserTests
 
         Assert.Null(result);
     }
+
+    [Theory]
+    [InlineData("Ja", true)]
+    [InlineData("Nee", false)]
+    public void ParseYesNo_JaOrNee_ReturnsBool(string input, bool expected)
+    {
+        var result = RdwValueParser.ParseYesNo(input);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("N.v.t.")]
+    [InlineData("ja")]
+    [InlineData("Geen verstrekking in Open Data")]
+    public void ParseYesNo_OtherValue_ReturnsNull(string? input)
+    {
+        var result = RdwValueParser.ParseYesNo(input);
+
+        Assert.Null(result);
+    }
 }

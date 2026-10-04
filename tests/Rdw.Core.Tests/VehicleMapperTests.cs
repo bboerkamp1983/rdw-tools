@@ -15,6 +15,7 @@ public class VehicleMapperTests
           "eerste_kleur": "GRIJS",
           "massa_ledig_voertuig": "1657",
           "datum_eerste_toelating": "20240320",
+          "export_indicator": "Nee",
           "wacht_op_keuren": "Geen verstrekking in Open Data"
         }
         """;
@@ -35,6 +36,18 @@ public class VehicleMapperTests
         Assert.Equal(1657, vehicle.EmptyMassKg);
         Assert.Equal(new DateOnly(2024, 3, 20), vehicle.FirstAdmissionDate);
         Assert.Equal(new DateOnly(2028, 3, 20), vehicle.ApkExpiryDate);
+        Assert.False(vehicle.IsExported);
+    }
+
+    [Fact]
+    public void ToVehicle_ExportedVehicle_IsExported()
+    {
+        var record = new RdwVehicleRecord { Kenteken = "TGNJ53", Merk = "TOYOTA", ExportIndicator = "Ja" };
+
+        var vehicle = VehicleMapper.ToVehicle(record);
+
+        Assert.True(vehicle.IsExported);
+        Assert.Equal("TOYOTA", vehicle.Make);
     }
 
     [Fact]
@@ -49,6 +62,7 @@ public class VehicleMapperTests
         Assert.Null(vehicle.EmptyMassKg);
         Assert.Null(vehicle.FirstAdmissionDate);
         Assert.Null(vehicle.ApkExpiryDate);
+        Assert.Null(vehicle.IsExported);
     }
 
     [Fact]

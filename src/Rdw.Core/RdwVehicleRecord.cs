@@ -27,4 +27,7 @@ public sealed class RdwVehicleRecord
 
     [JsonPropertyName("vervaldatum_apk")]
     public string? VervaldatumApk { get; init; }
+
+    [JsonPropertyName("export_indicator")]
+    public string? ExportIndicator { get; init; }
 }
