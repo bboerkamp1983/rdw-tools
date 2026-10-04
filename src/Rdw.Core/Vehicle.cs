@@ -10,4 +10,5 @@ public sealed record Vehicle
     public int? EmptyMassKg { get; init; }
     public DateOnly? FirstAdmissionDate { get; init; }
     public DateOnly? ApkExpiryDate { get; init; }
+    public bool? IsExported { get; init; }
 }

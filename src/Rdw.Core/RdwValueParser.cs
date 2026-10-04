@@ -5,6 +5,8 @@ namespace Rdw.Core;
 public static class RdwValueParser
 {
     private const string DateFormat = "yyyyMMdd";
+    private const string Yes = "Ja";
+    private const string No = "Nee";
 
     public static int? ParseInt(string? input)
     {
@@ -24,5 +26,15 @@ public static class RdwValueParser
         }
 
         return null;
+    }
+
+    public static bool? ParseYesNo(string? input)
+    {
+        return input switch
+        {
+            Yes => true,
+            No => false,
+            _ => null,
+        };
     }
 }

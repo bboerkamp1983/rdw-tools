@@ -41,11 +41,19 @@ static void PrintVehicle(Vehicle vehicle)
     Console.WriteLine($"Empty mass    : {ShowMass(vehicle.EmptyMassKg)}");
     Console.WriteLine($"First admitted: {ShowDate(vehicle.FirstAdmissionDate)}");
     Console.WriteLine($"APK expires   : {ShowDate(vehicle.ApkExpiryDate)}");
+    Console.WriteLine($"Exported      : {ShowYesNo(vehicle.IsExported)}");
 }
 
 static string ShowText(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
 
 static string ShowMass(int? value) => value is null ? "-" : $"{value} kg";
+
+static string ShowYesNo(bool? value) => value switch
+{
+    true => "yes",
+    false => "no",
+    null => "-",
+};
 
 static string ShowDate(DateOnly? value) =>
     value is null ? "-" : value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
