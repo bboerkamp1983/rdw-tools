@@ -29,17 +29,14 @@ Some facts that shape this decision:
   Locking the API does not affect the CLI unless the CLI is later changed to
   call the API.
 
-### Open questions for the owner
+### Questions for the owner (answered)
 
-Who the users are and how they connect is not decided yet. The choice below
-works for the recommended defaults; the answers may change the details.
-
-| # | Question | Options | Recommended default |
-| --- | --- | --- | --- |
-| Q1 | Who may use the API? | Only the owner / a few known people / open sign-up | **A few known people, invited by the owner.** No open sign-up: it adds abuse, support and privacy work that the project does not need yet. |
-| Q2 | How do users connect? | Web UI / only API and CLI | **API only for now** (scripts, `curl`, a future CLI mode). A web UI is a separate ADR; the choice below must not block it. |
-| Q3 | Budget? | Free tiers only / small monthly amount | **Free tiers only** until there is a reason to pay. |
-| Q4 | Hosting platform preference? | Azure / another cloud / own server | **No preference yet.** The choice below must work on any platform that runs a container or a .NET app, so it does not decide the platform. |
+| # | Question | Owner's answer |
+| --- | --- | --- |
+| Q1 | Who may use the API? | **Answered.** All accounts of the Google Workspace domain `euromaster.com`, plus one personal Google account of the owner. No open sign-up. The owner confirmed that `euromaster.com` is a Google Workspace domain. |
+| Q2 | How do users connect? | **Answered.** API now. A web interface comes later, decided in a separate ADR. The choices here must stay compatible with it (Google login can also serve a web UI). |
+| Q3 | Budget? | **Answered.** Free tier, or a small amount per month if needed. |
+| Q4 | Hosting platform? | **Answered.** Azure, in the owner's own personal subscription (not Euromaster's tenant), so no Euromaster IT governance applies. Region: an EU region (West Europe or North Europe), so the container and its logs stay in the EU. |
 
 ## Threat model (short)
 
@@ -91,9 +88,9 @@ client receives a short-lived access token (JWT) and sends it as
   except for testing purposes" and "Use OpenID Connect 1.0 or an OAuth
   standard to create access tokens for API access" [4].
 
-Possible providers include Microsoft Entra External ID (billed per monthly
-active user, with a free tier [6]) and others; the provider is chosen after
-Q3 and Q4 are answered.
+Provider: **Google** is chosen (see Decision). Microsoft Entra External ID
+(billed per monthly active user, with a free tier [6]) stays only as the
+broker alternative described under "Main trade-offs".
 
 ### C. Access control in front of the application (reverse proxy or platform feature)
 
@@ -110,7 +107,7 @@ reach it. Examples:
   `CF-Access-Client-Secret` headers [8].
 
 - Pro: little or no code; the platform handles login and sessions.
-- Con: ties the security of the API to one platform (conflicts with Q4).
+- Con: ties the security of the API to one platform.
   The lock is configuration outside this repository, so our tests cannot
   prove it; if the app is also reachable directly (bypassing the proxy), it is
   open. Service tokens are again long-lived shared secrets.
@@ -143,10 +140,85 @@ JWT bearer validation inside the API.**
   Development-only.
 - Missing, expired or invalid token: `401 Unauthorized` with a
   `WWW-Authenticate` header [4]. No redirect to a login page; this is an API.
-- Access is limited to the invited users (Q1), configured at the IdP or as
-  an allow-list of user identities in configuration.
 - A platform feature (alternative C) may be added later as an **extra**
   layer, never as the only lock.
+
+### Identity provider: Google (refines alternative B)
+
+Google (OpenID Connect), used directly, without a broker.
+
+**Token.** The API accepts a Google **ID token** as
+`Authorization: Bearer <token>`. A Google access token is not used: it lets an
+application "access all the APIs related to the scopes of access you
+requested" [14], which are Google's APIs, not ours.
+
+**Validation** with `AddJwtBearer` [4]:
+
+- Authority / metadata: `https://accounts.google.com`. The discovery document
+  is at `https://accounts.google.com/.well-known/openid-configuration` [14];
+  the signing keys come from its `jwks_uri`.
+- Valid issuers: **both** `https://accounts.google.com` and
+  `accounts.google.com`. Google: `iss` is "Always `https://accounts.google.com`
+  or `accounts.google.com` for Google ID tokens" [14].
+- Valid audience: our Google OAuth client ID. Google: "Verify that the value
+  of the `aud` claim in the ID token is equal to your app's client ID" [14].
+  The client ID is configuration, not a secret.
+- Lifetime and signature are validated as usual.
+
+**Authorization.** A policy, applied through the fallback policy after
+authentication, allows the request if **either**:
+
+1. the token has the claim `hd` equal to `euromaster.com`, **or**
+2. the token's `sub` is in the configured allow-list of individual users.
+
+Otherwise the API returns `403 Forbidden` (authenticated, but not allowed). A
+missing, invalid or expired token stays `401 Unauthorized`.
+
+**Rules:**
+
+- **Never decide access on the domain of the `email` claim.** Google: "you
+  can't rely on the domain of the `email` claim to identify users of Google
+  Workspace or Cloud organizations; use the `hd` claim instead" [14]. An
+  account with an `@euromaster.com` email address but no `hd` claim (a
+  personal Google account created with a work address) gets 403. Google: "The
+  absence of this claim indicates that the account does not belong to a Google
+  hosted domain" [14].
+- The `hd` **request** parameter in the login URL is only a UI hint. Google:
+  "Don't rely on this UI optimization to control who can access your app, as
+  client-side requests can be modified" [14]. Only the `hd` claim in the
+  validated token counts.
+- Individual users are identified by `sub`, not by email. Google: `sub` is
+  "unique among all Google Accounts and never reused", and "the `sub` value is
+  never changed"; the email "could change over time" [14]. For the
+  owner's personal Google account, the owner looks up the `sub` after the
+  first login and adds it to the allow-list.
+- Leavers: Euromaster accounts lose access when Euromaster disables them in
+  Workspace; no action by us. Individual users are removed from the
+  allow-list.
+
+**Configuration** (environment variables or the secret store in production,
+`dotnet user-secrets` locally). Nothing user-specific goes into committed
+`appsettings*.json`, because the allow-list is personal data.
+
+| Key | Meaning |
+| --- | --- |
+| `Authentication:Google:ClientId` | Our Google OAuth client ID (the expected `aud`) |
+| `Authorization:AllowedHostedDomains` | Allowed `hd` values, e.g. `["euromaster.com"]` |
+| `Authorization:AllowedSubjects` | Allowed Google `sub` values of individual users |
+
+### Hosting: Azure Container Apps
+
+Azure Container Apps, Consumption plan, scale to zero, in an EU region (West
+Europe or North Europe) of the owner's personal subscription.
+
+- Cost: "The first 180,000 vCPU-seconds, 360,000 GiB-seconds, and 2 million
+  requests per subscription per month are free", and "No usage charges apply
+  when an application is scaled to zero" [15]. A minimum replica is optional;
+  then "usage is charged at a reduced idle rate when a replica is inactive"
+  [15].
+- The lock stays in the application (JWT validation in the API), so the
+  platform remains replaceable. Platform authentication (Easy Auth) is only
+  ever an extra layer, never the only lock.
 
 ### Why
 
@@ -154,19 +226,32 @@ JWT bearer validation inside the API.**
   without us storing any password or long-lived user secret.
 - It is the standard approach recommended in the official ASP.NET Core
   documentation [4] and is supported by the framework we already use.
-- It is platform-independent (Q4 open) and keeps the door open for a web
-  UI (Q2).
-- The lock lives in the code, so CI can prove it on every PR.
+- Google login fits Q1 directly (the Euromaster users already have Google
+  Workspace accounts) and can also serve a later web UI (Q2).
+- The lock lives in the code, so CI can prove it on every PR, and the
+  hosting platform stays replaceable.
 
 ### Main trade-offs
 
-- More setup than API keys, and an external dependency: if the IdP is down,
-  nobody can log in.
-- Clients need an OAuth flow to get a token. For scripts and a future CLI
-  mode this is extra work (device authorization grant [5]); it is not needed
-  for the current CLI, which calls the RDW directly.
-- Possible cost above the provider's free tier; to be checked when the
-  provider is chosen.
+- **ID token instead of access token.** Using an ID token as the API
+  credential deviates from the Microsoft guidance cited above ("Use OpenID
+  Connect 1.0 or an OAuth standard to create access tokens for API access"
+  [4]). Accepted for a small project. The alternative is a broker (Firebase
+  Auth, Microsoft Entra External ID, Auth0) with Google as login, which issues
+  real access tokens for our API. Recorded as a possible later change.
+- **Many users.** The whole `euromaster.com` domain may be thousands of
+  people, not "a few known people". The per-user **and** the global rate
+  limits therefore matter more. The privacy reasoning now also covers
+  employees of a company. The owner should check whether Euromaster has rules
+  on using company Google accounts for external tools.
+- **Dependency on Google.** If Google sign-in is down, nobody can log in.
+- **Getting a token.** Clients need an OAuth flow to get a Google ID token.
+  For scripts and a future CLI mode this is extra work (see "What could not
+  be verified"); it is not needed for the current CLI, which calls the RDW
+  directly.
+- **Cold start.** After an idle period the first request is slower,
+  because the app scales to zero. Accepted. A minimum of one replica (idle
+  rate [15]) is the fallback if it becomes a problem.
 
 ## Consequences
 
@@ -197,8 +282,8 @@ JWT bearer validation inside the API.**
 Using ASP.NET Core's built-in rate limiting middleware
 (`Microsoft.AspNetCore.RateLimiting`) [3]:
 
-- **Per user**, partitioned on the authenticated user identity (the token
-  subject), not on IP address or on raw header values: partitioning on
+- **Per user**, partitioned on the Google `sub` claim, not on email, IP
+  address or raw header values: partitioning on
   unauthenticated input lets an attacker create unlimited partitions [3].
   Authentication runs before rate limiting, so anonymous requests are already
   rejected with 401.
@@ -209,7 +294,18 @@ Using ASP.NET Core's built-in rate limiting middleware
   explicitly with `RejectionStatusCode` or `OnRejected` [3], so that a rate
   limit is never confused with the 503 "RDW unavailable" of ADR-004.
 - The numbers (per minute, per day) are set in configuration and decided
-  when the RDW's limits are known (see below).
+  when the RDW's limits are known (see below). With the whole
+  `euromaster.com` domain allowed, the global limit is the main protection
+  of the RDW quota.
+
+### Cost controls
+
+- A monthly budget alert in Azure Cost Management on the owner's
+  subscription.
+- Short retention in Log Analytics.
+- The container image is hosted on GitHub Container Registry (public, no
+  secrets in it) instead of Azure Container Registry, unless the owner
+  prefers otherwise.
 
 ### Logging
 
@@ -228,33 +324,53 @@ Using ASP.NET Core's built-in rate limiting middleware
   when logging changes.
 - The plate is part of the URL path (`/api/v1/vehicles/{licensePlate}`,
   ADR-004). A reverse proxy or hosting platform will usually write that
-  path to its own access logs, next to the client IP. When the platform is
-  chosen, its access logging and retention must be checked. Changing the URL
+  path to its own access logs, next to the client IP. The platform is Azure
+  Container Apps: its ingress or access logging may record the plate in the
+  URL path. Check this when deploying and set the retention. Changing the URL
   shape would be a `v2` change under ADR-004 and is not proposed here.
-- Retention: as short as is useful for troubleshooting; to be set with the
-  platform.
+- Retention: as short as is useful for troubleshooting, set in Log
+  Analytics. Logs stay in the chosen EU region (Q4).
 
 ### Proving the lock works
 
-- **Automated** (CI, `tests/Rdw.Api.Tests`): a request to
-  `/api/v1/vehicles/{plate}` without a token returns 401 and does not call
-  `IRdwClient`; an invalid or expired token returns 401; a valid test token
-  returns the normal result; `/health` returns 200 without a token. Tests use
-  locally created test tokens, never a real IdP and never the RDW.
+- **Automated** (CI, `tests/Rdw.Api.Tests`). Tests use locally signed test
+  tokens with the same claims shape as Google ID tokens, never real Google
+  and never the RDW. A request to `/api/v1/vehicles/{plate}`:
+
+  | Token | Expected |
+  | --- | --- |
+  | no token | 401, `IRdwClient` not called |
+  | wrong `aud` | 401 |
+  | wrong `iss` | 401 |
+  | expired | 401 |
+  | `hd` = `euromaster.com` | 200 |
+  | email ends in `@euromaster.com`, **no** `hd` claim | **403** (the key test) |
+  | `hd` = `other-domain.com` | 403 |
+  | no `hd`, `sub` in the allow-list | 200 |
+  | no `hd`, `sub` not in the allow-list (e.g. another `gmail.com` account) | 403 |
+
+  And `/health` without a token returns 200.
 - **By hand (owner)**, after each deployment: run
   `curl -i https://<host>/api/v1/vehicles/X998ZG` without credentials and
   check that the answer is `401 Unauthorized`, not 200, 404 or 503. Repeat
-  with a valid token and check that it returns 200. Steps go in the README
-  when the feature is built.
+  with a valid token and check that it returns 200. Also log in with a Google
+  account that is not allowed and check that it returns `403 Forbidden`.
+  Steps go in the README when the feature is built.
 
 ### Follow-up work (separate issues after acceptance)
 
-1. Owner answers Q1–Q4; choose the identity provider.
-2. Owner decides on enabling secret scanning and push protection.
-3. Implement authentication and the fallback policy, with the 401 tests.
-4. Implement rate limiting with 429.
-5. Check the platform's access logs and retention.
-6. Update ADR-004 ("Out of scope" lists authentication and rate limiting)
+1. Owner creates the Azure subscription with a personal Microsoft account
+   (not the Euromaster account), sets a monthly budget alert and chooses the
+   EU region.
+2. Owner creates the Google OAuth client in Google Cloud Console and records
+   the client ID in configuration.
+3. Owner obtains the `sub` of their personal Google account.
+4. Owner decides on enabling secret scanning and push protection.
+5. Implement authentication, the fallback policy and the `hd`/`sub`
+   authorization policy, with the 401 and 403 tests.
+6. Implement rate limiting with 429.
+7. Check the Container Apps access logs and set the retention.
+8. Update ADR-004 ("Out of scope" lists authentication and rate limiting)
    and the README.
 
 ## What could not be verified
@@ -271,10 +387,17 @@ Using ASP.NET Core's built-in rate limiting middleware
   be confirmed by the owner or a privacy adviser.
 - **Free tier sizes and prices.** I did not find the number of free users
   for Cloudflare Access or the number of free monthly active users for
-  Microsoft Entra External ID on an official page I could read. Both must be
-  checked on the providers' pricing pages when choosing.
-- **Device authorization grant support** per identity provider was not
-  checked; it depends on the provider chosen.
+  Microsoft Entra External ID on an official page I could read. Only relevant
+  if a broker or Cloudflare is chosen later.
+- **How clients get a Google ID token.** How scripts and `curl` obtain a
+  Google ID token for our client ID was not checked. Google's discovery
+  document lists a `device_authorization_endpoint` (checked 2026-10-04), but
+  whether the device flow [5] fits our case was not checked.
+- **Google ID token lifetime.** The Google page says to check that `exp` has
+  not passed [14], but I did not find the lifetime itself stated there.
+- **Container Apps details.** The exact per-second prices for the EU
+  regions (the pricing page shows them only per selected region), the cold
+  start duration, and the cost of Log Analytics were not checked.
 - **No API key handler in ASP.NET Core.** I did not find one in the
   documentation, but did not check the full list of built-in handlers.
 - **GitHub secret scanning state.** The documentation says secret scanning
@@ -299,3 +422,5 @@ Accessed 2026-10-04.
 11. GitHub Docs, "About secret scanning": <https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning>
 12. GitHub Docs, "Push protection": <https://docs.github.com/en/code-security/concepts/secret-security/push-protection>
 13. OWASP Cheat Sheet Series, "Logging": <https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html>
+14. Google for Developers, "OpenID Connect | Sign in with Google" (updated 2026-06-15): <https://developers.google.com/identity/openid-connect/openid-connect>
+15. Microsoft Azure, "Azure Container Apps pricing": <https://azure.microsoft.com/en-us/pricing/details/container-apps/>
