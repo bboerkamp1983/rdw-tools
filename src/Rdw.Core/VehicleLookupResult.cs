@@ -37,7 +37,7 @@ public sealed record VehicleLookupResult
             LookupStatus.InvalidInput,
             null,
             null,
-            "The input can never be a license plate (a plate has exactly six letters or digits, separators not counted).");
+            $"The input can never be a license plate (a plate has exactly {LicensePlateNormalizer.PlateLength} letters or digits, separators not counted).");
     }
 
     public static VehicleLookupResult ServiceUnavailable(string message)

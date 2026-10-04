@@ -32,3 +32,25 @@ RDW call that always returns `NotFound`.
 - The rule depends on this dataset. If we add a dataset with other plate
   formats, or the RDW data changes, revisit this ADR and repeat the length
   query from the research document.
+
+## When the RDW changes its plate format
+
+The plate length is defined in one place: the constant
+`LicensePlateNormalizer.PlateLength` in `src/Rdw.Core`. The `InvalidInput`
+message and the tests tied to the length are built from it. When the RDW
+changes its plate format (for example longer plates):
+
+1. Repeat the length query from `docs/research/rdw-open-questions.md`
+   (`SELECT length(kenteken) AS len, count(*) AS n GROUP BY len`) and record
+   the new result there.
+2. If the data shows one new fixed length, change `PlateLength`. If several
+   lengths occur, a single constant no longer fits: write a new ADR first.
+3. Update the tests with concrete example plates in
+   `LicensePlateNormalizerTests` and `RdwClientTests`; they are expected to
+   fail after the change, as a reminder.
+4. Update this ADR, the example in ADR-004 and CLAUDE.md.
+
+The length is deliberately a constant in code, not a runtime setting
+(`appsettings.json`): a change in the RDW format needs the steps above
+(research, tests, documentation), and a setting would let a running
+installation disagree with the tested rule.

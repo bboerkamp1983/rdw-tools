@@ -2,8 +2,11 @@
 
 public static class LicensePlateNormalizer
 {
-    // Every plate in dataset m9d7-ebf2 has exactly six characters (ADR-003).
-    private const int PlateLength = 6;
+    // The only place that defines the plate length. Every plate in dataset
+    // m9d7-ebf2 has exactly this many characters. If the RDW changes its plate
+    // format, change it here and follow ADR-003 ("When the RDW changes its
+    // plate format").
+    public const int PlateLength = 6;
 
     public static string Normalize(string input)
     {
