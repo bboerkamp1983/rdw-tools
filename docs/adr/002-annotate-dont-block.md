@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-01
+- Amended by: ADR-003
 
 ## Context
 
@@ -19,7 +20,8 @@ contains an empty list, not with an error.
 
 - Input that can never be a license plate (empty, only separators, longer
   than six characters after normalization) is rejected immediately, without
-  calling the RDW (fail fast).
+  calling the RDW (fail fast). The length rule is amended by ADR-003: input
+  must be exactly six characters after normalization.
 - Everything else is passed on to the RDW. The core never decides whether a
   plate is "valid"; the RDW data is the source of truth.
 - The result of a lookup is a result object with an explicit status

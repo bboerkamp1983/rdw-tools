@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Rdw.Core;
 
@@ -51,6 +51,8 @@ public class RdwClientTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
+    [InlineData("AB12")]
+    [InlineData("AB-123")]
     [InlineData("ABCDEFG")]
     public async Task GetVehicleAsync_ImpossibleInput_ReturnsInvalidInputWithoutCallingRdw(string? input)
     {

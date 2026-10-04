@@ -1,4 +1,4 @@
-using Rdw.Core;
+﻿using Rdw.Core;
 
 namespace Rdw.Core.Tests;
 
@@ -19,8 +19,8 @@ public class LicensePlateNormalizerTests
     [Theory]
     [InlineData("AB-123-C", "AB123C")]
     [InlineData(" x 998 zg ", "X998ZG")]
-    [InlineData("AB@123", "AB123")]
-    [InlineData("AB1", "AB1")]
+    [InlineData("ab@12#3c", "AB123C")]
+    [InlineData("RM-04-80", "RM0480")]
     public void TryNormalize_AcceptsPossiblePlates(string input, string expected)
     {
         var success = LicensePlateNormalizer.TryNormalize(input, out var normalized);
@@ -34,6 +34,10 @@ public class LicensePlateNormalizerTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("--- ---")]
+    [InlineData("A")]
+    [InlineData("AB1")]
+    [InlineData("AB12")]
+    [InlineData("AB@123")]
     [InlineData("AB-123-CD")]
     [InlineData("ABCDEFG")]
     public void TryNormalize_RejectsImpossibleInput(string? input)

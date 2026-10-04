@@ -2,7 +2,8 @@
 
 public static class LicensePlateNormalizer
 {
-    private const int MaxPlateLength = 6;
+    // Every plate in dataset m9d7-ebf2 has exactly six characters (ADR-003).
+    private const int PlateLength = 6;
 
     public static string Normalize(string input)
     {
@@ -23,7 +24,7 @@ public static class LicensePlateNormalizer
 
         var candidate = Normalize(input);
 
-        if (candidate.Length == 0 || candidate.Length > MaxPlateLength)
+        if (candidate.Length != PlateLength)
         {
             return false;
         }
