@@ -10,7 +10,24 @@ if (args.Length != 2 || !string.Equals(args[0], "kenteken", StringComparison.Ord
 using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
 IRdwClient client = new RdwClient(httpClient);
 
-var result = await client.GetVehicleAsync(args[1]);
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, e) =>
+{
+    // Stop the lookup instead of killing the process, so it can exit with its own code.
+    e.Cancel = true;
+    cancellation.Cancel();
+};
+
+VehicleLookupResult result;
+try
+{
+    result = await client.GetVehicleAsync(args[1], cancellation.Token);
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    Console.Error.WriteLine("Cancelled.");
+    return ExitCodes.Cancelled;
+}
 
 switch (result.Status)
 {
@@ -67,4 +84,5 @@ internal static class ExitCodes
     public const int InvalidInput = 2;
     public const int ServiceUnavailable = 3;
     public const int UsageError = 64;
+    public const int Cancelled = 130;
 }

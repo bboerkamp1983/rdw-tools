@@ -160,8 +160,10 @@ HTTPS certificates for production, and a web UI.
 - One more project to build and test; CI time grows slightly.
 - `VehicleResponse` must be kept in step with `Core.Vehicle` when fields are
   added; a test on the JSON shape catches forgotten fields in the response.
-- `IRdwClient.GetVehicleAsync` has no `CancellationToken`. The API works
-  without it, but a cancelled HTTP request would still wait for the RDW.
-  Adding an optional token to Core is a small follow-up change.
+- `IRdwClient.GetVehicleAsync` takes an optional `CancellationToken`
+  (issue #45). The endpoint passes `HttpContext.RequestAborted`, so a client
+  that disconnects stops the RDW call. A cancellation by the caller throws
+  `OperationCanceledException` (standard .NET behavior) and is not reported
+  as `ServiceUnavailable`; an `HttpClient` timeout still is.
 - With 503 for every RDW failure, callers cannot tell a timeout from an RDW
   error by status code alone; the problem `detail` explains it.

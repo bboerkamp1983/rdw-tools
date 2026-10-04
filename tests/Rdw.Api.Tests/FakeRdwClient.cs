@@ -13,7 +13,9 @@ public sealed class FakeRdwClient : IRdwClient
 
     public List<string?> RequestedPlates { get; } = [];
 
-    public Task<VehicleLookupResult> GetVehicleAsync(string? licensePlate)
+    public Task<VehicleLookupResult> GetVehicleAsync(
+        string? licensePlate,
+        CancellationToken cancellationToken = default)
     {
         RequestedPlates.Add(licensePlate);
         return Task.FromResult(_result);
