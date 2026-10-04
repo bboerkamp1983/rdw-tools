@@ -195,6 +195,21 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Empty(_rdw.RequestedPlates);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NoConfigurationAtAll_RejectsEveryRequest(bool withValidToken)
+    {
+        // No client ID and no allow-lists: the state of a fresh deployment.
+        var client = _factory.WithTestAuth(_rdw, clientId: null).CreateClient();
+        var token = withValidToken ? TestTokens.Create(TestTokens.EuromasterClaims()) : null;
+
+        var response = await Send(client, token);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Empty(_rdw.RequestedPlates);
+    }
+
     [Fact]
     public async Task ClientIdNotConfigured_Returns401()
     {
