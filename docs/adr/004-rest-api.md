@@ -46,8 +46,8 @@ source of truth (ADR-002).
 
 ### Vehicle data
 
-The API returns the vehicle data that `Rdw.Core` already maps, no more and
-no less. Every field is always present; an unknown value is `null`, never
+The API returns the vehicle data that `Rdw.Core` maps, no more and no less
+(`bodyType` and `maxPermittedMassKg` are added to Core in PR #40). Every field is always present; an unknown value is `null`, never
 left out.
 
 | JSON field | Type | Meaning | RDW source field |
@@ -57,13 +57,16 @@ left out.
 | `tradeName` | string or null | Trade name / model (`NIRO`) | `handelsbenaming` |
 | `vehicleType` | string or null | Vehicle type (`Personenauto`) | `voertuigsoort` |
 | `primaryColor` | string or null | Primary color (`GRIJS`) | `eerste_kleur` |
+| `bodyType` | string or null | Body type (`stationwagen`) | `inrichting` |
 | `emptyMassKg` | integer or null | Empty mass in kg (`1657`) | `massa_ledig_voertuig` |
+| `maxPermittedMassKg` | integer or null | Maximum permitted mass in kg (`2200`) | `toegestane_maximum_massa_voertuig` |
 | `firstAdmissionDate` | date or null | Date of first admission (`2024-03-20`) | `datum_eerste_toelating` |
 | `apkExpiryDate` | date or null | APK (MOT) expiry date (`2028-03-20`) | `vervaldatum_apk` |
 | `isExported` | boolean or null | Vehicle has been exported (`Ja`/`Nee`) | `export_indicator` |
 
 - Texts are passed on as the RDW provides them (Dutch, upper case for
-  colors and makes); the API does not translate them.
+  colors and makes); the API does not translate them. This includes RDW
+  placeholders such as `Niet geregistreerd` or `N.v.t.` in `bodyType`.
 - Dates are ISO 8601 (`yyyy-MM-dd`), without time.
 - Adding a field is done in Core first (`RdwVehicleRecord`, `Vehicle`, with
   tests), then in the API response. Adding a field is a compatible change
@@ -92,7 +95,9 @@ Example: `GET /api/v1/vehicles/x-998-zg` returns 200 OK:
   "tradeName": "NIRO",
   "vehicleType": "Personenauto",
   "primaryColor": "GRIJS",
+  "bodyType": "stationwagen",
   "emptyMassKg": 1657,
+  "maxPermittedMassKg": 2200,
   "firstAdmissionDate": "2024-03-20",
   "apkExpiryDate": "2028-03-20",
   "isExported": false
