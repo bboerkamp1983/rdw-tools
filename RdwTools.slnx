@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Rdw.Api/Rdw.Api.csproj" />
     <Project Path="src/Rdw.Cli/Rdw.Cli.csproj" />
     <Project Path="src/Rdw.Core/Rdw.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Rdw.Api.Tests/Rdw.Api.Tests.csproj" />
     <Project Path="tests/Rdw.Core.Tests/Rdw.Core.Tests.csproj" />
   </Folder>
 </Solution>
