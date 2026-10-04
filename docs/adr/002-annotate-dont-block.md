@@ -36,5 +36,8 @@ contains an empty list, not with an error.
 - Slightly more code than returning null or throwing exceptions.
 - The list of plate patterns has to be maintained and tested separately
   (to be designed after the first real RDW call).
-- How exported vehicles appear in the data (the export indicator field) is
-  still to be verified against real responses before we describe it here.
+- Exported vehicles stay in the dataset: `export_indicator` is always `Ja`
+  or `Nee`, and an exported vehicle is returned as `Found` with
+  `export_indicator = "Ja"`. Export never causes `NotFound`; a not-found
+  plate has no record and therefore no export indicator. Verified on
+  2026-10-04, see `docs/research/rdw-open-questions.md`.
