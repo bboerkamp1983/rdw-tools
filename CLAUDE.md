@@ -24,6 +24,8 @@
 ## Workflow
 
 - Never commit to `main`. One issue per task, then a branch (`feat/`, `fix/`, `docs/`, `test/`, `chore/`, `ci/`), then a PR with `Closes #n`. Use `gh` for issues and PRs.
+- Start every task from an up-to-date `main` (`git switch main`, `git pull`) before creating a branch.
+- After the owner merges a PR: switch to `main`, pull, and delete the merged local branch (`git branch -d <branch>`).
 - Conventional Commits in English (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`). Commit messages are permanent: make them accurate.
 - Test-first for Core logic. Tests never call the real RDW; use the `FakeHttpMessageHandler` pattern in `tests/Rdw.Core.Tests`.
 - Before opening a PR: `dotnet build` and `dotnet test` pass, and `git diff` shows no unintended deletions.
