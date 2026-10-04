@@ -160,8 +160,9 @@ shows up as 503 on the vehicle endpoint. Added in issue #46.
 
 ## Out of scope (separate issues or ADRs later)
 
-Authentication, rate limiting, caching, CORS, Docker, a readiness check
-that tests the RDW connection, HTTPS certificates for production, and a web UI.
+Caching, CORS, Docker, a readiness check that tests the RDW connection,
+HTTPS certificates for production, and a web UI. Authentication and rate
+limiting are decided in ADR-005.
 
 ## Consequences
 

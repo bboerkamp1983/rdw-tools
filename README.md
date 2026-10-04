@@ -40,6 +40,7 @@ account, sent as `Authorization: Bearer <token>` (ADR-005).
 | RDW unreachable | 503, problem details |
 | No token, or an invalid or expired token | 401 |
 | Valid token, but the account is not allowed | 403 |
+| Rate limit reached | 429, problem details, `Retry-After` header |
 
 `GET http://localhost:5064/health` returns 200 (`Healthy`) while the API is running.
 It needs no token and does not call the RDW.
@@ -85,3 +86,34 @@ How a script obtains a Google ID token for this client ID is not settled yet
 decoder or a chat: it gives access to the API until it expires. The automated
 tests (`dotnet test`) cover all access rules with locally signed test tokens and
 never contact Google.
+
+### Rate limits
+
+Requests to the API are limited per user (the Google `sub` claim, never the
+email address or IP address) and for all users together (ADR-005). A rejected
+request gets `429 Too Many Requests` with a `Retry-After` header (seconds), so it
+is never confused with `503` (RDW unavailable). Requests answered with 401 or 403
+use no quota, and `/health` is not rate limited. Every other request to the
+vehicle endpoint counts, including 400 and 404 answers (this also limits scraping).
+`Retry-After` is an upper bound: the full window length, not the exact time left.
+While the global limit is reached, retries still count against the user's own
+limit, so a user may have to wait up to one extra per-user window.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `RateLimiting:PerUser:PermitLimit` | 10 | Requests per user per window |
+| `RateLimiting:PerUser:WindowSeconds` | 60 | Length of the per-user window |
+| `RateLimiting:Global:PermitLimit` | 60 | Requests for all users together per window |
+| `RateLimiting:Global:WindowSeconds` | 60 | Length of the global window |
+
+The defaults are **conservative guesses, to be verified**. They are not based on
+RDW limits: no official RDW limits were found (ADR-005, "What could not be
+verified"). Every value must be greater than zero; otherwise the API does not start.
+Set them like the other settings, e.g.
+`dotnet user-secrets set "RateLimiting:Global:PermitLimit" "30" --project src/Rdw.Api`.
+
+The limits are **per app instance**: each running copy of the API keeps its own
+counters in memory. The official documentation does not say this explicitly; the
+test `TwoAppInstances_DoNotShareLimits` shows it. With several replicas the global
+limit multiplies by the number of replicas, so the hosting setup must either run
+one replica or accept that.

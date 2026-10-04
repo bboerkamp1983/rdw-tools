@@ -37,6 +37,14 @@ public static class TestTokens
         ["hd"] = HostedDomain,
     };
 
+    /// <summary>Claims of an individual (non-Workspace) Google account.</summary>
+    public static Dictionary<string, object> PersonalClaims(string subject, string email) => new()
+    {
+        ["sub"] = subject,
+        ["email"] = email,
+        ["email_verified"] = true,
+    };
+
     public static string Create(
         IDictionary<string, object> claims,
         string issuer = GoogleIssuer,
@@ -69,15 +77,17 @@ public static class TestTokens
     /// Configures the isolated test host with test settings, a fake RDW client and the local signing key.
     /// The settings passed here are the only configuration the host has (see <see cref="ApiTestFactory"/>).
     /// Pass null for <paramref name="clientId"/> to leave the client ID unconfigured.
+    /// <paramref name="extraSettings"/> adds other settings, such as rate limits.
     /// </summary>
     public static WebApplicationFactory<Program> WithTestAuth(
         this ApiTestFactory factory,
         IRdwClient rdwClient,
         string[]? allowedHostedDomains = null,
         string[]? allowedSubjects = null,
-        string? clientId = ClientId)
+        string? clientId = ClientId,
+        IReadOnlyDictionary<string, string?>? extraSettings = null)
     {
-        var settings = new Dictionary<string, string?>();
+        var settings = new Dictionary<string, string?>(extraSettings ?? new Dictionary<string, string?>());
         if (clientId is not null)
         {
             settings[GoogleAuthentication.ClientIdKey] = clientId;
