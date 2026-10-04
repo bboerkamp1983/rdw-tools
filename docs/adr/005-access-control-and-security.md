@@ -293,7 +293,8 @@ Using ASP.NET Core's built-in rate limiting middleware
 - Rejections return `429 Too Many Requests` with `Retry-After`, set
   explicitly with `RejectionStatusCode` or `OnRejected` [3], so that a rate
   limit is never confused with the 503 "RDW unavailable" of ADR-004.
-- The numbers (per minute, per day) are set in configuration and decided
+- The numbers (a permit limit and a window length for each limiter) are set
+  in configuration and decided
   when the RDW's limits are known (see below). With the whole
   `euromaster.com` domain allowed, the global limit is the main protection
   of the RDW quota.
