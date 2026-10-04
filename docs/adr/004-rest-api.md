@@ -1,6 +1,6 @@
 # ADR-004: REST API
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-04
 
 ## Context
@@ -84,7 +84,9 @@ left out.
   ASP.NET Core. For 400 and 503, `detail` carries the `Message` from the
   lookup result. A `NotFound` result has no message, so for 404 the API uses
   a fixed text (as the CLI does) and adds the normalized plate as
-  `licensePlate`.
+  `licensePlate`. ASP.NET Core also adds a `traceId` to every problem
+  response, to find the request in the logs; the examples below leave it
+  out.
 
 Example: `GET /api/v1/vehicles/x-998-zg` returns 200 OK:
 
