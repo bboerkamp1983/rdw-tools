@@ -42,7 +42,8 @@ public static class TestTokens
         string audience = ClientId,
         DateTime? expiresUtc = null,
         SecurityKey? signingKey = null,
-        bool signed = true)
+        bool signed = true,
+        bool includeExpiry = true)
     {
         var expires = expiresUtc ?? DateTime.UtcNow.AddMinutes(30);
         var descriptor = new SecurityTokenDescriptor
@@ -52,13 +53,15 @@ public static class TestTokens
             Claims = claims,
             IssuedAt = expires.AddHours(-1),
             NotBefore = expires.AddHours(-1),
-            Expires = expires,
+            Expires = includeExpiry ? expires : null,
             SigningCredentials = signed
                 ? new SigningCredentials(signingKey ?? SigningKey, SecurityAlgorithms.RsaSha256)
                 : null,
         };
 
-        return new JsonWebTokenHandler().CreateToken(descriptor);
+        // Without this the handler adds a default exp claim.
+        var handler = new JsonWebTokenHandler { SetDefaultTimesOnTokenCreation = includeExpiry };
+        return handler.CreateToken(descriptor);
     }
 
     /// <summary>
@@ -74,6 +77,10 @@ public static class TestTokens
     {
         return factory.WithWebHostBuilder(builder =>
         {
+            // Not Development: user secrets are only loaded in Development, so a developer's own
+            // access configuration (README) cannot change the outcome of these tests.
+            builder.UseEnvironment("Testing");
+
             if (clientId is not null)
             {
                 builder.UseSetting("Authentication:Google:ClientId", clientId);

@@ -76,6 +76,17 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task TokenWithoutExpiry_Returns401()
+    {
+        var token = TestTokens.Create(TestTokens.EuromasterClaims(), includeExpiry: false);
+
+        var response = await Send(token);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Empty(_rdw.RequestedPlates);
+    }
+
+    [Fact]
     public async Task UnsignedToken_Returns401()
     {
         var token = TestTokens.Create(TestTokens.EuromasterClaims(), signed: false);
@@ -170,6 +181,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await Send(token);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Empty(_rdw.RequestedPlates);
     }
 
     [Fact]

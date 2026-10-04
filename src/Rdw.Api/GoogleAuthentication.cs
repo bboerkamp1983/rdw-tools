@@ -90,6 +90,7 @@ public sealed class GoogleAccountHandler : AuthorizationHandler<GoogleAccountReq
         var hostedDomain = context.User.FindFirst("hd")?.Value;
         var subject = context.User.FindFirst("sub")?.Value;
 
+        // Domain names are case-insensitive; Google sends them in lower case. A sub is compared exactly.
         var domainAllowed = !string.IsNullOrEmpty(hostedDomain)
             && options.AllowedHostedDomains.Contains(hostedDomain, StringComparer.OrdinalIgnoreCase);
         var subjectAllowed = !string.IsNullOrEmpty(subject)
