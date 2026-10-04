@@ -117,3 +117,24 @@ counters in memory. The official documentation does not say this explicitly; the
 test `TwoAppInstances_DoNotShareLimits` shows it. With several replicas the global
 limit multiplies by the number of replicas, so the hosting setup must either run
 one replica or accept that.
+
+## Container image
+
+CI (`.github/workflows/ci.yml`) builds the REST API as a container image with the
+.NET SDK, without a Dockerfile (ADR-006):
+
+- **Pull requests**: the job `container-image-build` checks that the image builds.
+  It writes the image to a local archive and pushes nothing. It is not a required check.
+- **Pushes to `main`**: after `build-and-test` passes, the job
+  `publish-container-image` pushes `ghcr.io/bboerkamp1983/rdw-tools-api:<commit SHA>`.
+  There is no `latest` tag. It logs in with the built-in `GITHUB_TOKEN`; no stored
+  secrets. It does not deploy anything.
+
+Build the same image locally, without pushing. The archive is written outside the
+repository, to `rdw-image` in your home directory, so it cannot be committed by accident:
+
+```sh
+dotnet publish src/Rdw.Api/Rdw.Api.csproj --os linux --arch x64 --configuration Release \
+  -t:PublishContainer -p ContainerRepository=bboerkamp1983/rdw-tools-api \
+  -p ContainerImageTag=local -p ContainerArchiveOutputPath="$HOME/rdw-image/"
+```
