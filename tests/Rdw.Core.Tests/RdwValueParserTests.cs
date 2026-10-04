@@ -1,4 +1,4 @@
-﻿using Rdw.Core;
+using Rdw.Core;
 
 namespace Rdw.Core.Tests;
 
