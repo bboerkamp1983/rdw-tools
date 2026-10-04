@@ -1,6 +1,6 @@
 # ADR-005: Access control and security for the online API
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-04
 - Relates to: ADR-004 (REST API)
 
