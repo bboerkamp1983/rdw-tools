@@ -8,7 +8,7 @@ using Rdw.Core;
 
 namespace Rdw.Api.Tests;
 
-public class VehicleEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public class VehicleEndpointTests : IClassFixture<ApiTestFactory>
 {
     private static readonly Vehicle Kia = new()
     {
@@ -25,9 +25,9 @@ public class VehicleEndpointTests : IClassFixture<WebApplicationFactory<Program>
         IsExported = false,
     };
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly ApiTestFactory _factory;
 
-    public VehicleEndpointTests(WebApplicationFactory<Program> factory)
+    public VehicleEndpointTests(ApiTestFactory factory)
     {
         _factory = factory;
     }

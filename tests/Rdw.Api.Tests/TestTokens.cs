@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,29 +66,29 @@ public static class TestTokens
     }
 
     /// <summary>
-    /// Configures the factory with test settings, a fake RDW client and the local signing key.
+    /// Configures the isolated test host with test settings, a fake RDW client and the local signing key.
+    /// The settings passed here are the only configuration the host has (see <see cref="ApiTestFactory"/>).
     /// Pass null for <paramref name="clientId"/> to leave the client ID unconfigured.
     /// </summary>
     public static WebApplicationFactory<Program> WithTestAuth(
-        this WebApplicationFactory<Program> factory,
+        this ApiTestFactory factory,
         IRdwClient rdwClient,
         string[]? allowedHostedDomains = null,
         string[]? allowedSubjects = null,
         string? clientId = ClientId)
     {
+        var settings = new Dictionary<string, string?>();
+        if (clientId is not null)
+        {
+            settings[GoogleAuthentication.ClientIdKey] = clientId;
+        }
+
+        AddList(settings, "Authorization:AllowedHostedDomains", allowedHostedDomains);
+        AddList(settings, "Authorization:AllowedSubjects", allowedSubjects);
+
         return factory.WithWebHostBuilder(builder =>
         {
-            // Not Development: user secrets are only loaded in Development, so a developer's own
-            // access configuration (README) cannot change the outcome of these tests.
-            builder.UseEnvironment("Testing");
-
-            if (clientId is not null)
-            {
-                builder.UseSetting("Authentication:Google:ClientId", clientId);
-            }
-
-            UseList(builder, "Authorization:AllowedHostedDomains", allowedHostedDomains);
-            UseList(builder, "Authorization:AllowedSubjects", allowedSubjects);
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(settings));
 
             builder.ConfigureTestServices(services =>
             {
@@ -105,11 +106,11 @@ public static class TestTokens
         });
     }
 
-    private static void UseList(IWebHostBuilder builder, string key, string[]? values)
+    private static void AddList(Dictionary<string, string?> settings, string key, string[]? values)
     {
         for (var i = 0; i < (values?.Length ?? 0); i++)
         {
-            builder.UseSetting($"{key}:{i}", values![i]);
+            settings[$"{key}:{i}"] = values![i];
         }
     }
 }

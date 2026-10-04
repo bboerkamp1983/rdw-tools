@@ -6,16 +6,16 @@ using Rdw.Core;
 namespace Rdw.Api.Tests;
 
 /// <summary>The test table of ADR-005, "Proving the lock works", plus a few extra cases.</summary>
-public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuthenticationTests : IClassFixture<ApiTestFactory>
 {
     private const string VehicleUrl = "/api/v1/vehicles/X998ZG";
 
     private static readonly Vehicle Kia = new() { LicensePlate = "X998ZG", Make = "KIA" };
 
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly ApiTestFactory _factory;
     private readonly FakeRdwClient _rdw = new(VehicleLookupResult.Found(Kia));
 
-    public AuthenticationTests(WebApplicationFactory<Program> factory)
+    public AuthenticationTests(ApiTestFactory factory)
     {
         _factory = factory;
     }
