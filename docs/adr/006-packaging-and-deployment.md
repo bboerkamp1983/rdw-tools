@@ -220,6 +220,35 @@ pushes by hand (First deployment, step 5). The change:
 Cost: GitHub Actions "usage is free for ... public repositories that use
 standard GitHub-hosted runners" [10], and the registry is free as above.
 
+### Implementation (issue #71)
+
+As this section promised, the `.github` change was made in a separate PR,
+after the owner approved it in issue #71. The workflow
+`.github/workflows/ci.yml` follows the points above, with these details:
+
+- `build-and-test` is unchanged; it stays the only required check.
+- `publish-container-image` runs only when the event is a push to `main` in
+  this repository and `build-and-test` has passed. The workflow has no
+  `pull_request_target` trigger, so pull requests (also from forks) never run
+  it. Only this job has `packages: write` (plus `contents: read`); the rest of
+  the workflow keeps `contents: read`.
+- It builds the app first and only then logs in, so no restore or build
+  runs while the registry credentials are on disk; the push step uses
+  `--no-build`.
+- It logs in with `docker login ghcr.io --password-stdin` and the built-in
+  `GITHUB_TOKEN`. The SDK reads credentials from the Docker config that
+  `docker login` writes [30]. The SDK's alternative, the environment
+  variables `DOTNET_CONTAINER_REGISTRY_UNAME` and `DOTNET_CONTAINER_REGISTRY_PWORD`,
+  is not used: they are "potentially vulnerable to credential leakage", and
+  they are not namespaced, so the SDK would also send the token to the
+  registry of the base image (`mcr.microsoft.com`) [30].
+- `container-image-build` runs on pull requests only and writes the image to
+  a local archive with `ContainerArchiveOutputPath`, which "doesn't require a
+  running OCI-compliant daemon" [1][2]. It pushes nothing, has no
+  `packages` permission, and is not a required check.
+- No third-party actions: only `actions/checkout` and `actions/setup-dotnet`,
+  plus the Docker CLI that is installed on the GitHub-hosted Ubuntu runner.
+
 ## Logging and personal data
 
 Container Apps has three log types: console logs, system logs, and **HTTP
@@ -622,3 +651,4 @@ Accessed 2026-10-04.
 27. Microsoft Learn, "List Azure role assignments using the Azure portal" (updated 2025-10-15): <https://learn.microsoft.com/azure/role-based-access-control/role-assignments-list-portal>
 28. Google for Developers, "Verify the Google ID token on your server side" (last updated 2025-12-22): <https://developers.google.com/identity/gsi/web/guides/verify-google-id-token>
 29. Microsoft Learn, "List of Azure regions" (updated 2025-09-23): <https://learn.microsoft.com/azure/reliability/regions-list>
+30. dotnet/sdk-container-builds, "Registry Authentication" (linked from the `ContainerRegistry` reference [2] as <https://aka.ms/dotnet/containers/auth>): <https://github.com/dotnet/sdk-container-builds/blob/main/docs/RegistryAuthentication.md>

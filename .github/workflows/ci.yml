@@ -30,3 +30,79 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --configuration Release
+
+  # Pull requests only: check that the API container image builds, without
+  # pushing it anywhere. Not a required check. See ADR-006.
+  container-image-build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build the container image to a local archive (no push)
+        run: >-
+          dotnet publish src/Rdw.Api/Rdw.Api.csproj
+          --os linux --arch x64 --configuration Release
+          /t:PublishContainer
+          -p ContainerRepository=bboerkamp1983/rdw-tools-api
+          -p ContainerImageTag="$GITHUB_SHA"
+          -p ContainerArchiveOutputPath="$RUNNER_TEMP/image/"
+
+  # Pushes to main only, after build-and-test passed: publish the API container
+  # image to GitHub Container Registry, tagged with the commit SHA. No deployment.
+  # See ADR-006.
+  publish-container-image:
+    needs: build-and-test
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && github.repository == 'bboerkamp1983/rdw-tools'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      # Restore and build before logging in, so no build step runs while the
+      # registry credentials are on disk.
+      - name: Build the app for the container
+        run: dotnet publish src/Rdw.Api/Rdw.Api.csproj --os linux --arch x64 --configuration Release
+
+      # The SDK reads registry credentials from the Docker config that
+      # docker login writes. The token is passed on stdin, never as an argument.
+      - name: Log in to GitHub Container Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publish the container image
+        run: >-
+          dotnet publish src/Rdw.Api/Rdw.Api.csproj
+          --os linux --arch x64 --configuration Release --no-build
+          /t:PublishContainer
+          -p ContainerRegistry=ghcr.io
+          -p ContainerRepository=bboerkamp1983/rdw-tools-api
+          -p ContainerImageTag="$GITHUB_SHA"
+
+      - name: Log out of GitHub Container Registry
+        if: always()
+        run: docker logout ghcr.io
