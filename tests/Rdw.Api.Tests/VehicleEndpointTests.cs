@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -151,10 +152,7 @@ public class VehicleEndpointTests : IClassFixture<WebApplicationFactory<Program>
     public async Task ClientDisconnect_CancelsTheLookup()
     {
         var waiting = new WaitingRdwClient();
-        var httpClient = _factory
-            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.AddSingleton<IRdwClient>(waiting)))
-            .CreateClient();
+        var httpClient = CreateClient(waiting);
         using var cts = new CancellationTokenSource();
 
         var request = httpClient.GetAsync("/api/v1/vehicles/X998ZG", cts.Token);
@@ -175,12 +173,13 @@ public class VehicleEndpointTests : IClassFixture<WebApplicationFactory<Program>
         Assert.IsType<RdwClient>(client);
     }
 
-    private HttpClient CreateClient(FakeRdwClient fake)
+    /// <summary>A client signed in as an allowed Euromaster user (ADR-005), so these tests check the endpoint itself.</summary>
+    private HttpClient CreateClient(IRdwClient rdwClient)
     {
-        return _factory
-            .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-                services.AddSingleton<IRdwClient>(fake)))
-            .CreateClient();
+        var client = _factory.WithTestAuth(rdwClient, allowedHostedDomains: [TestTokens.HostedDomain]).CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", TestTokens.Create(TestTokens.EuromasterClaims()));
+        return client;
     }
 
     private static async Task<JsonDocument> ReadJson(HttpResponseMessage response)
