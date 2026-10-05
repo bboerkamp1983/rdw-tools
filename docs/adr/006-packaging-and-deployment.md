@@ -544,6 +544,7 @@ With `<host>` the app's address:
 | Same, with a token of another Google account | `403 Forbidden` |
 | `az containerapp show ... --query properties.template.scale` | `minReplicas` 0, `maxReplicas` 1 |
 | Logging checks 1-4 above | no HTTP logs, no plate in logs, 30 days retention |
+| Locally, at the deployed commit: `RateLimiting__PerUser__WindowSeconds=0 dotnet run --project src/Rdw.Api` (README, "Rate limits") | the app refuses to start: `OptionsValidationException` with `RateLimiting:PerUser:WindowSeconds must be greater than zero.` (the key, never the value) |
 | Budget | exists, with the owner's email address |
 | Subscription > Access control (IAM) > Role assignments | one Owner (the owner's personal account), no other assignments |
 | Microsoft account security page | two-step verification is on |

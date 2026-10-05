@@ -112,6 +112,15 @@ verified"). Every value must be greater than zero; otherwise the API does not st
 Set them like the other settings, e.g.
 `dotnet user-secrets set "RateLimiting:Global:PermitLimit" "30" --project src/Rdw.Api`.
 
+The automated tests check the start-up validation but do not start the app with
+an invalid value. Check by hand that the API refuses to start:
+
+```sh
+RateLimiting__PerUser__WindowSeconds=0 dotnet run --project src/Rdw.Api
+# Expected: "Hosting failed to start" and an OptionsValidationException with
+# "RateLimiting:PerUser:WindowSeconds must be greater than zero."
+```
+
 The limits are **per app instance**: each running copy of the API keeps its own
 counters in memory. The official documentation does not say this explicitly; the
 test `TwoAppInstances_DoNotShareLimits` shows it. With several replicas the global
