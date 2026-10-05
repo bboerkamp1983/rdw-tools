@@ -93,8 +93,10 @@ public static class RateLimiting
 }
 
 /// <summary>
-/// Rate limit settings. The defaults are conservative guesses, not based on RDW limits: no official
-/// RDW limits were found (ADR-005). To be verified before the euromaster.com domain is enabled.
+/// Rate limit settings. The defaults are unverified: neither the RDW nor Socrata publishes a number,
+/// and the owner decided to keep these values (docs/research/rdw-fair-use-and-rate-limits.md).
+/// A 429 from the RDW (a 503 with "status 429" in the message) is the signal to lower them. Raise
+/// them only once an RDW app token is in use.
 /// </summary>
 public sealed class RateLimitingOptions
 {

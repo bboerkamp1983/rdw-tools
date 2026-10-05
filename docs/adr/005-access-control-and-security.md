@@ -402,8 +402,11 @@ Using ASP.NET Core's built-in rate limiting middleware
 
 - **RDW-specific limits.** The throttling rules cited are Socrata's general
   documentation [1]. I found no official RDW page that states the RDW's own
-  limits or fair-use terms. Before setting the global rate limit, check this
-  on `opendata.rdw.nl` or ask the RDW.
+  limits or fair-use terms. Researched in #66
+  (`docs/research/rdw-fair-use-and-rate-limits.md`): neither the RDW nor
+  Socrata publishes a number. The owner decided (2026-10-05) to keep the
+  defaults (10 per user and 60 global per 60 seconds) as unverified and not
+  to ask the RDW. A `429` from the RDW is the signal to lower them.
 - **License plates as personal data.** The Dutch Data Protection Authority
   (Autoriteit Persoonsgegevens) page on traffic cameras appears to say that
   plates are personal data for anyone with access to the RDW register, but
