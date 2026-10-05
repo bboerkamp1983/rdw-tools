@@ -16,9 +16,11 @@ public static class RateLimiting
     {
         services.AddOptions<RateLimitingOptions>()
             .BindConfiguration(RateLimitingOptions.SectionName)
-            .Validate(
-                options => options.PerUser.IsValid && options.Global.IsValid,
-                "RateLimiting: every PermitLimit and WindowSeconds must be greater than zero.")
+            // One rule per setting, so the error names the key that is wrong (never its value).
+            .Validate(options => options.PerUser.PermitLimit > 0, MustBePositive("PerUser:PermitLimit"))
+            .Validate(options => options.PerUser.WindowSeconds > 0, MustBePositive("PerUser:WindowSeconds"))
+            .Validate(options => options.Global.PermitLimit > 0, MustBePositive("Global:PermitLimit"))
+            .Validate(options => options.Global.WindowSeconds > 0, MustBePositive("Global:WindowSeconds"))
             .ValidateOnStart();
 
         services.AddRateLimiter(options =>
@@ -44,6 +46,9 @@ public static class RateLimiting
 
         return services;
     }
+
+    private static string MustBePositive(string key) =>
+        $"{RateLimitingOptions.SectionName}:{key} must be greater than zero.";
 
     // Only the Google sub claim identifies a user here: never the email, IP address or a raw header.
     // Every request that gets this far is authenticated; a token without sub (Google always sends
@@ -107,6 +112,4 @@ public sealed class LimitOptions
     public int PermitLimit { get; set; }
 
     public int WindowSeconds { get; set; }
-
-    internal bool IsValid => PermitLimit > 0 && WindowSeconds > 0;
 }

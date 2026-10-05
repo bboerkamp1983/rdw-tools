@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Rdw.Core;
@@ -165,16 +166,58 @@ public class RateLimitingTests : IClassFixture<ApiTestFactory>
         Assert.Equal(60, options.Global.WindowSeconds);
     }
 
+    // These tests run the start-up validation that Host.StartAsync runs (IStartupValidator, registered
+    // by ValidateOnStart) without starting the app. Starting it through WebApplicationFactory raced
+    // with the app disposing itself after the failed start (issue #73). That the real app refuses to
+    // start is verified manually: README, "Rate limits", and ADR-006, "Manual checks afterwards".
     [Theory]
-    [InlineData("RateLimiting:PerUser:PermitLimit")]
-    [InlineData("RateLimiting:PerUser:WindowSeconds")]
-    [InlineData("RateLimiting:Global:PermitLimit")]
-    [InlineData("RateLimiting:Global:WindowSeconds")]
-    public void ZeroOrNegativeValue_StopsTheAppFromStarting(string key)
+    [InlineData("RateLimiting:PerUser:PermitLimit", "0")]
+    [InlineData("RateLimiting:PerUser:PermitLimit", "-1")]
+    [InlineData("RateLimiting:PerUser:WindowSeconds", "0")]
+    [InlineData("RateLimiting:PerUser:WindowSeconds", "-1")]
+    [InlineData("RateLimiting:Global:PermitLimit", "0")]
+    [InlineData("RateLimiting:Global:PermitLimit", "-1")]
+    [InlineData("RateLimiting:Global:WindowSeconds", "0")]
+    [InlineData("RateLimiting:Global:WindowSeconds", "-1")]
+    public void ZeroOrNegativeValue_StopsTheAppFromStarting(string key, string value)
     {
-        var factory = _factory.WithTestAuth(_rdw, extraSettings: new Dictionary<string, string?> { [key] = "0" });
+        using var services = RateLimitingServices(new Dictionary<string, string?> { [key] = value });
 
-        Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => services.GetRequiredService<IStartupValidator>().Validate());
+
+        Assert.Equal([$"{key} must be greater than zero."], exception.Failures);
+    }
+
+    [Fact]
+    public void SmallestValidValue_IsAccepted()
+    {
+        using var services = RateLimitingServices(new Dictionary<string, string?>
+        {
+            ["RateLimiting:PerUser:PermitLimit"] = "1",
+            ["RateLimiting:PerUser:WindowSeconds"] = "1",
+            ["RateLimiting:Global:PermitLimit"] = "1",
+            ["RateLimiting:Global:WindowSeconds"] = "1",
+        });
+
+        services.GetRequiredService<IStartupValidator>().Validate();
+
+        var options = services.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
+        Assert.Equal(1, options.PerUser.PermitLimit);
+        Assert.Equal(1, options.PerUser.WindowSeconds);
+        Assert.Equal(1, options.Global.PermitLimit);
+        Assert.Equal(1, options.Global.WindowSeconds);
+    }
+
+    private static ServiceProvider RateLimitingServices(Dictionary<string, string?> settings)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+
+        return new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddLogging()
+            .AddApiRateLimiting()
+            .BuildServiceProvider();
     }
 
     private HttpClient CreateClient(int perUser, int global, IRdwClient? rdwClient = null)
