@@ -114,6 +114,8 @@ public class VehicleEndpointTests : IClassFixture<ApiTestFactory>
         Assert.Equal("Vehicle not found", root.GetProperty("title").GetString());
         Assert.Equal("ZZ999Z", root.GetProperty("licensePlate").GetString());
         Assert.Contains("ZZ999Z", root.GetProperty("detail").GetString());
+        // The RDW's open data terms do not allow stating that the data comes from the RDW (#78).
+        Assert.DoesNotContain("RDW", root.GetProperty("detail").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -145,6 +147,7 @@ public class VehicleEndpointTests : IClassFixture<ApiTestFactory>
         using var json = await ReadJson(response);
         var root = json.RootElement;
         Assert.Equal(503, root.GetProperty("status").GetInt32());
+        Assert.Equal("Vehicle data unavailable", root.GetProperty("title").GetString());
         Assert.Equal("Timeout while calling the RDW.", root.GetProperty("detail").GetString());
     }
 
