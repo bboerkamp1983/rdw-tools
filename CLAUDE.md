@@ -30,13 +30,14 @@
 - Test-first for Core logic. Tests never call the real RDW; use the `FakeHttpMessageHandler` pattern in `tests/Rdw.Core.Tests`.
 - Before opening a PR: `dotnet build` and `dotnet test` pass, and `git diff` shows no unintended deletions.
 - A PR is done when the CI check (`build-and-test`) is green. Show the evidence (test output, check result).
+- A test that fails once in CI is a bug until proven otherwise. Do not re-run it and move on: reproduce it, find the cause with evidence, and report it.
 - Never commit secrets (tokens, keys, passwords). Use environment variables or configuration.
 - Keep the README and ADRs in step with the code.
 
 ## Stop and ask first
 
 - Any change to `.github/`, repository settings or this file.
-- Deleting, skipping or weakening a test to get to green.
+- Deleting, skipping, weakening or retrying a test to get to green, including to fix flakiness.
 - A new design decision that needs an ADR.
 - Anything destructive: force-push, rewriting history, deleting branches that are not yours.
 - Merging. For now the owner merges every PR.
