@@ -1,7 +1,7 @@
 # rdw-tools
-Reusable .NET library, CLI and REST API for RDW open data
+Reusable .NET library, CLI and REST API for Dutch open vehicle data
 
-Data source: RDW open data, dataset `m9d7-ebf2` ("Gekentekende voertuigen").
+Data source: open data, dataset `m9d7-ebf2` ("Gekentekende voertuigen"), licensed CC0.
 Design decisions are in [`docs/adr/`](docs/adr/).
 
 ## Requirements
@@ -35,9 +35,9 @@ account, sent as `Authorization: Bearer <token>` (ADR-005).
 | Situation | HTTP status |
 | --- | --- |
 | Vehicle found | 200, vehicle as JSON |
-| Plate not in the RDW data | 404, problem details |
+| Plate not in the open vehicle data | 404, problem details |
 | Input can never be a plate | 400, problem details |
-| RDW unreachable | 503, problem details |
+| Vehicle data service unreachable | 503, problem details |
 | No token, or an invalid or expired token | 401 |
 | Valid token, but the account is not allowed | 403 |
 | Rate limit reached | 429, problem details, `Retry-After` header |
@@ -92,7 +92,7 @@ never contact Google.
 Requests to the API are limited per user (the Google `sub` claim, never the
 email address or IP address) and for all users together (ADR-005). A rejected
 request gets `429 Too Many Requests` with a `Retry-After` header (seconds), so it
-is never confused with `503` (RDW unavailable). Requests answered with 401 or 403
+is never confused with `503` (vehicle data unavailable). Requests answered with 401 or 403
 use no quota, and `/health` is not rate limited. Every other request to the
 vehicle endpoint counts, including 400 and 404 answers (this also limits scraping).
 `Retry-After` is an upper bound: the full window length, not the exact time left.

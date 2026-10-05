@@ -36,7 +36,7 @@ switch (result.Status)
         return ExitCodes.Success;
 
     case LookupStatus.NotFound:
-        Console.Error.WriteLine($"No vehicle found for {result.LicensePlate} in the RDW open data.");
+        Console.Error.WriteLine($"No vehicle found for {result.LicensePlate} in the open vehicle data.");
         return ExitCodes.NotFound;
 
     case LookupStatus.InvalidInput:
@@ -44,7 +44,7 @@ switch (result.Status)
         return ExitCodes.InvalidInput;
 
     default:
-        Console.Error.WriteLine($"The RDW could not be queried: {result.Message}");
+        Console.Error.WriteLine($"The vehicle data could not be queried: {result.Message}");
         return ExitCodes.ServiceUnavailable;
 }
 

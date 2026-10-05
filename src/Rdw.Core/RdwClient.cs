@@ -33,7 +33,7 @@ public sealed class RdwClient : IRdwClient
             if (!response.IsSuccessStatusCode)
             {
                 return VehicleLookupResult.ServiceUnavailable(
-                    $"The RDW answered with status {(int)response.StatusCode} ({response.StatusCode}).");
+                    $"The vehicle data service answered with status {(int)response.StatusCode} ({response.StatusCode}).");
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -48,17 +48,17 @@ public sealed class RdwClient : IRdwClient
         }
         catch (HttpRequestException ex)
         {
-            return VehicleLookupResult.ServiceUnavailable($"The RDW could not be reached: {ex.Message}");
+            return VehicleLookupResult.ServiceUnavailable($"The vehicle data service could not be reached: {ex.Message}");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             // Cancelled without the caller asking for it: the HttpClient timeout expired.
             // A cancellation by the caller is not caught and reaches the caller.
-            return VehicleLookupResult.ServiceUnavailable("The request to the RDW timed out.");
+            return VehicleLookupResult.ServiceUnavailable("The request to the vehicle data service timed out.");
         }
         catch (JsonException)
         {
-            return VehicleLookupResult.ServiceUnavailable("The RDW returned data in an unexpected format.");
+            return VehicleLookupResult.ServiceUnavailable("The vehicle data service returned data in an unexpected format.");
         }
     }
 }

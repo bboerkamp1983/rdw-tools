@@ -139,6 +139,39 @@ public class RdwClientTests
         Assert.Contains("timed out", result.Message);
     }
 
+    public static TheoryData<string> FailureKinds => new() { "http-error", "network", "timeout", "bad-json" };
+
+    // Users see this message (API 503 detail, CLI output). The RDW's open data terms do not allow
+    // stating that the data comes from the RDW, so user-visible text must not name it (#78).
+    [Theory]
+    [MemberData(nameof(FailureKinds))]
+    public async Task GetVehicleAsync_ServiceUnavailableMessage_DoesNotNameTheRdw(string failure)
+    {
+        var handler = new FakeHttpMessageHandler(async (_, token) =>
+        {
+            switch (failure)
+            {
+                case "http-error":
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                case "network":
+                    throw new HttpRequestException("Network down.");
+                case "timeout":
+                    await Task.Delay(Timeout.Infinite, token);
+                    return JsonResponse(KiaJsonArray);
+                default:
+                    return JsonResponse("{ not json");
+            }
+        });
+        var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        var client = new RdwClient(httpClient);
+
+        var result = await client.GetVehicleAsync("X998ZG", CancellationToken.None);
+
+        Assert.Equal(LookupStatus.ServiceUnavailable, result.Status);
+        Assert.False(string.IsNullOrWhiteSpace(result.Message));
+        Assert.DoesNotContain("RDW", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static HttpResponseMessage JsonResponse(string json)
     {
         return new HttpResponseMessage(HttpStatusCode.OK)

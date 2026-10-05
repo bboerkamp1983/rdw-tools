@@ -18,7 +18,7 @@ public static class VehicleEndpoint
 
             LookupStatus.NotFound => TypedResults.Problem(
                 title: "Vehicle not found",
-                detail: $"No vehicle found for {result.LicensePlate} in the RDW open data.",
+                detail: $"No vehicle found for {result.LicensePlate} in the open vehicle data.",
                 statusCode: StatusCodes.Status404NotFound,
                 extensions: new Dictionary<string, object?> { ["licensePlate"] = result.LicensePlate }),
 
@@ -28,7 +28,7 @@ public static class VehicleEndpoint
                 statusCode: StatusCodes.Status400BadRequest),
 
             _ => TypedResults.Problem(
-                title: "RDW unavailable",
+                title: "Vehicle data unavailable",
                 detail: result.Message,
                 statusCode: StatusCodes.Status503ServiceUnavailable),
         };

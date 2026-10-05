@@ -113,7 +113,7 @@ Example: `GET /api/v1/vehicles/ZZ-999-Z` returns 404 Not Found:
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
   "title": "Vehicle not found",
   "status": 404,
-  "detail": "No vehicle found for ZZ999Z in the RDW open data.",
+  "detail": "No vehicle found for ZZ999Z in the open vehicle data.",
   "licensePlate": "ZZ999Z"
 }
 ```
