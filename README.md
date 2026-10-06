@@ -81,9 +81,11 @@ curl -i -H "Authorization: Bearer <id-token>" http://localhost:5064/api/v1/vehic
                                                          # 200 if allowed, 403 if not
 ```
 
-How a script obtains a Google ID token for this client ID is not settled yet
-(ADR-005, "What could not be verified"). Never paste a real token into an online
-decoder or a chat: it gives access to the API until it expires. The automated
+To get a real Google ID token for manual testing (a local "Sign in with Google"
+page, no client secret), find your `sub` and run these checks with `curl.exe`, follow
+[`docs/google-id-token-testing.md`](docs/google-id-token-testing.md). A way for a
+script to get a token without a browser is not settled yet. Never paste a real token
+into an online decoder or a chat: it gives access to the API until it expires. The automated
 tests (`dotnet test`) cover all access rules with locally signed test tokens and
 never contact Google.
 
