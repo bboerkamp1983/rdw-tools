@@ -106,9 +106,12 @@ limit, so a user may have to wait up to one extra per-user window.
 | `RateLimiting:Global:PermitLimit` | 60 | Requests for all users together per window |
 | `RateLimiting:Global:WindowSeconds` | 60 | Length of the global window |
 
-The defaults are **conservative guesses, to be verified**. They are not based on
-RDW limits: no official RDW limits were found (ADR-005, "What could not be
-verified"). Every value must be greater than zero; otherwise the API does not start.
+The defaults are **unverified**: neither the RDW nor Socrata publishes a number,
+and the owner decided to keep these values. The reasoning and arithmetic are in
+[`docs/research/rdw-fair-use-and-rate-limits.md`](docs/research/rdw-fair-use-and-rate-limits.md).
+If the RDW starts throttling us, the API answers `503` with "status 429" in the
+problem details `detail`; lower the limits then. Raise them only once an RDW app
+token is in use. Every value must be greater than zero; otherwise the API does not start.
 Set them like the other settings, e.g.
 `dotnet user-secrets set "RateLimiting:Global:PermitLimit" "30" --project src/Rdw.Api`.
 
