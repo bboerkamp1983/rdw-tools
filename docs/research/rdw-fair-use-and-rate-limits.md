@@ -14,8 +14,21 @@ abusive. The data is CC0 and free, but the RDW's own terms say reusers may
 not state that the data comes from the RDW or use its logo, which may
 conflict with our README and needs the owner's attention. I propose keeping
 the current defaults (10 per user and 60 global per 60 seconds) marked as
-unverified and asking the RDW directly (draft below), with an app token and
-caching as options for the owner to decide.
+unverified, with an app token and caching as options for the owner to decide.
+
+## Decisions (owner, 2026-10-05)
+
+- **The RDW is not contacted.** This is a hobby project; the owner decided not
+  to ask the RDW about fair use or the naming condition. No answer from the
+  RDW will come, so open points are decided on the verified findings below
+  plus judgment. The draft question that was here has been removed (#80); it
+  remains in git history.
+- **Rate limit defaults kept** as unverified: 10 per user and 60 global per
+  60 seconds (section 6). Pointing the code comment, README and ADR-005 to
+  this note is #81.
+- **The RDW name was removed from user-visible text** (API messages, CLI
+  output, README), "level 1" in #78. The project, repository, image and code
+  names are unchanged.
 
 Labels used below: **VERIFIED** (read on the cited page, or observed in a
 request listed under "Requests sent to the RDW"), **UNVERIFIED** (seen only
@@ -126,9 +139,9 @@ app token.
     own condition.
   - Conflicting signal: the dataset metadata [12] has the attribution field
     `Team Open Data RDW`.
-  - Proposal: ask the RDW (see the draft message), and decide after the
-    answer whether the README, the API responses or the project name need
-    changing. Not changed in this PR.
+  - Done: user-visible text no longer names the RDW (#78). The project,
+    repository, image and code names are unchanged; the RDW is not asked
+    (see "Decisions").
 - **VERIFIED**: the RDW is not liable for damage from using the data, and not
   liable for "onrechtmatige of vrije toegang" to data that you offer through
   the dataset [1]. Our API returns the data to other users at our own risk.
@@ -209,11 +222,11 @@ count against the same pool.
    "monopolize" the API. At 1 per second we are unlikely to be either.
 3. **What to watch**: a `429` from the RDW currently becomes our 503 with
    "status 429" in the message. If that ever shows up in the logs, lower the
-   global limit and ask the RDW. A separate `LookupStatus` for throttling
+   global limit. A separate `LookupStatus` for throttling
    would be a design change and needs an ADR; not proposed now.
 4. **Raising the limits** (for example when the `euromaster.com` domain is
-   enabled) should wait until either the RDW answers the question below or
-   an app token is in use.
+   enabled) should wait until an app token is in use. The RDW is not asked
+   (see "Decisions"), so no verified number will become available otherwise.
 
 ### Options for the owner (not decided)
 
@@ -243,41 +256,11 @@ count against the same pool.
   outbound IP addresses with other tenants**: not stated in the official
   documentation I checked [13][14][15].
 - **How to read the "no mention of the RDW" condition** [1] for our README,
-  project name and API responses. This is a legal reading; ask the RDW.
+  project name and API responses. This is a legal reading; the RDW is not
+  asked (see "Decisions"), and user-visible text no longer names the RDW
+  (#78).
 - **Tyler's SaaS license agreement** linked from opendata.rdw.nl: not read in
   detail (it appears to be the agreement with the RDW, not with consumers).
-
-## Draft question to the RDW (Dutch, not sent)
-
-To send through the RDW contact form (link in the footer of [1]) or post in
-the RDW Open Data forum. Not sent; the owner decides.
-
-> Onderwerp: Vraag over fair use en bronvermelding bij Open Data RDW
->
-> Beste Team Open Data RDW,
->
-> Ik bouw een kleine interne toepassing die voertuiggegevens opvraagt uit de
-> dataset Gekentekende voertuigen (m9d7-ebf2) via de API op
-> opendata.rdw.nl. Het gaat om losse opvragingen per kenteken, met een
-> maximum van ongeveer één verzoek per seconde.
->
-> In de bijsluiter staat dat de performance op basis van fair use is. Ik heb
-> drie vragen:
->
-> 1. Hanteert de RDW concrete grenzen voor fair use (bijvoorbeeld een
->    maximum aantal verzoeken per minuut of per dag), met of zonder app
->    token?
-> 2. Raadt de RDW aan om een app token te gebruiken, en hoe vraag ik die aan?
-> 3. In de bijsluiter staat dat bij hergebruik niet vermeld mag worden dat de
->    gegevens van de RDW afkomstig zijn. Geldt dat ook voor technische
->    documentatie voor ontwikkelaars (bijvoorbeeld een README die noemt
->    welke dataset wordt gebruikt), of alleen voor wat eindgebruikers in de
->    toepassing zien?
->
-> Alvast hartelijk dank voor uw antwoord.
->
-> Met vriendelijke groet,
-> [naam]
 
 ## Requests sent to the RDW
 
