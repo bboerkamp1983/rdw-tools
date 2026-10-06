@@ -57,11 +57,11 @@ The owner ran the commands and portal steps, except:
   local Azure CLI session;
 - Claude also ran read-only checks (`show`, `list`) the same way.
 
-This differs from ADR-006 ("Owner account and subscription access"): "Claude
-and other AI agents get no Azure access; they do not run `az` commands." No
-role assignment or credential was given to Claude; it used the owner's local
-session. Whether this stays an exception or ADR-006 changes is an open owner
-decision.
+At the time, ADR-006 said "Claude and other AI agents get no Azure access;
+they do not run `az` commands." No role assignment or credential was given to
+Claude; it used the owner's local session. Afterwards the owner amended
+ADR-006 (Q9): Claude may run `az` commands through the owner's local session,
+but only after asking for and receiving explicit approval for each action.
 
 ## How it was created
 
