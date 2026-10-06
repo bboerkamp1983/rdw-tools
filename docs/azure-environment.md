@@ -28,9 +28,13 @@ Not created yet: the container app, the image, and any secrets.
 
 ADR-006 chose West Europe (Q4). Creating the workspace there failed with
 `RequestDisallowedByAzure` / `LocationIneligible`: the region did not accept
-this new subscription. Microsoft's official documentation was not found to
-say this; answers on Microsoft Q&A describe West Europe as closed to new
-customers. The owner chose North Europe instead, which ADR-005 allows ("West
+this new subscription. Microsoft documents this: "To prioritize resources for
+existing customers in an Azure region, Microsoft may restrict access for
+customers without resources in that location", and the policy "is currently
+in effect" for West Europe [11]. Its advice is that "Most users should select
+a different Azure region"; a support request is meant only for tenants that
+already have resources there or a clear need for country-specific data
+sovereignty [11], neither of which applies. The owner chose North Europe instead, which ADR-005 allows ("West
 Europe or North Europe"). North Europe is in Ireland, an EU member state,
 geography Europe, paired with West Europe [1].
 
@@ -160,3 +164,4 @@ Accessed 2026-10-06.
 8. Microsoft Learn, "Tutorial: Create and manage budgets": <https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets>
 9. Microsoft Learn, "Understand Cost Management data": <https://learn.microsoft.com/azure/cost-management-billing/costs/understand-cost-mgt-data>
 10. Microsoft Learn, "Delete and recover a Log Analytics workspace": <https://learn.microsoft.com/azure/azure-monitor/logs/delete-workspace>
+11. Microsoft Learn, "Resolve location ineligible errors" (updated 2025-05-07, accessed 2026-10-06): <https://learn.microsoft.com/azure/azure-resource-manager/troubleshooting/error-region-access-policy>
