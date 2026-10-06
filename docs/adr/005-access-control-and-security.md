@@ -420,7 +420,12 @@ Using ASP.NET Core's built-in rate limiting middleware
 - **How clients get a Google ID token.** How scripts and `curl` obtain a
   Google ID token for our client ID was not checked. Google's discovery
   document lists a `device_authorization_endpoint` (checked 2026-10-04), but
-  whether the device flow [5] fits our case was not checked.
+  whether the device flow [5] fits our case was not checked. Researched in #65
+  (`docs/google-id-token-testing.md`, 2026-10-06): for manual tests, a local
+  "Sign in with Google" page with our Web application client gives an ID token
+  without a client secret. Google's device flow and desktop app flow both need
+  a client secret and a separate client (a second audience), so a supported
+  script flow without a browser is still open.
 - **Google ID token lifetime.** The Google page says to check that `exp` has
   not passed [14], but I did not find the lifetime itself stated there.
 - **Container Apps details.** The exact per-second prices for the EU
