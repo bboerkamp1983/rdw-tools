@@ -503,9 +503,12 @@ filled in by the owner and never committed.
    personal Microsoft account (not the Euromaster account) first (Owner
    account and subscription access). Then create the Azure subscription with
    that account and create the monthly budget alert (Cost control).
-2. **Resource group** in West Europe (Q4), which is in the Netherlands
-   (paired region North Europe, in Ireland) [29]:
-   `az group create -n <rg> -l westeurope`
+2. **Resource group** in North Europe (Q4, changed from West Europe), which
+   is in Ireland (paired region West Europe, in the Netherlands) [29]:
+   `az group create -n <rg> -l northeurope`
+
+   Steps 1-4 were done on 2026-10-06; names, settings and checks are in
+   `docs/azure-environment.md`.
 3. **Log Analytics workspace** in the same region; set retention to 30 days
    and `immediatePurgeDataOn30Days` to `true` [13].
 4. **Container Apps environment** with `--logs-destination log-analytics` and
@@ -562,7 +565,7 @@ the owner has used both before they are needed.
 | Q1 | Image registry? | GHCR, public package. |
 | Q2 | Should CI publish an image on every push to `main`? | Yes, publish only, no automatic deployment. The `.github` change is a separate PR. The first deployment may be done by hand. |
 | Q3 | Key Vault now? | No. Container Apps secrets for the allow-list; Key Vault when the first real secret (for example the RDW app token) is added. |
-| Q4 | Region? | West Europe (`westeurope`), physical location the Netherlands, geography Europe, paired region North Europe (Ireland) [29]. |
+| Q4 | Region? | West Europe (`westeurope`), physical location the Netherlands, geography Europe, paired region North Europe (Ireland) [29]. **Changed 2026-10-06:** West Europe refused the new subscription (`LocationIneligible`), so the owner chose North Europe (`northeurope`, Ireland), which ADR-005 allows. See `docs/azure-environment.md`. |
 | Q5 | Budget amount and alerts? | 10 euro per month; actual cost at 50/80/100%, forecast at 100%. |
 | Q6 | Store logs? | Log Analytics, 30 days, immediate purge; no HTTP logs. |
 | Q7 | Accept cold starts? | Yes, minimum 0 replicas. Revisit if it bothers users. |
