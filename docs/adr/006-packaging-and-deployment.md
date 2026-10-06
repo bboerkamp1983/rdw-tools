@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-04 (proposed and accepted)
+- Amended: 2026-10-06 (region, Q4; Azure actions by Claude, Q9)
 - Relates to: ADR-004 (REST API), ADR-005 (access control and security)
 
 The owner accepted this ADR with the answers in "Owner decisions" and asked for
@@ -450,10 +451,20 @@ verification on the personal Microsoft account [25]:
 **Owner** of the subscription. No other users, no guests, no Euromaster
 account, no service principals or managed identities with a role on the
 subscription, and no Azure credentials in GitHub (CI only pushes to GHCR).
-Claude and other AI agents get no Azure access; they do not run `az`
-commands. This follows least privilege and stays under Microsoft's advice of
+This follows least privilege and stays under Microsoft's advice of
 "a maximum of 3 subscription owners" [26]; it also matters because
 Container Apps Contributor and Operator can read secrets in plain text [6].
+
+**Claude and other AI agents** (amended 2026-10-06, Q9) get no role
+assignment, credential or identity of their own in Azure. Claude may run
+`az` commands only through the owner's own signed-in local CLI session, and
+only after asking for and receiving the owner's **explicit approval** for
+that action. Before asking, Claude states the exact command and what it
+changes or reads. This applies to every command, also read-only checks.
+Approval for one action does not cover the next. The original rule ("they do
+not run `az` commands") was replaced after the setup of 2026-10-06, during
+which Claude ran commands at the owner's request (see
+`docs/azure-environment.md`).
 
 Check (Manual checks): Subscriptions > the subscription > **Access control
 (IAM)** > **Role assignments** shows one Owner, the owner's account, and no
@@ -503,9 +514,12 @@ filled in by the owner and never committed.
    personal Microsoft account (not the Euromaster account) first (Owner
    account and subscription access). Then create the Azure subscription with
    that account and create the monthly budget alert (Cost control).
-2. **Resource group** in West Europe (Q4), which is in the Netherlands
-   (paired region North Europe, in Ireland) [29]:
-   `az group create -n <rg> -l westeurope`
+2. **Resource group** in North Europe (Q4, changed from West Europe), which
+   is in Ireland (paired region West Europe, in the Netherlands) [29]:
+   `az group create -n <rg> -l northeurope`
+
+   Steps 1-4 were done on 2026-10-06; names, settings and checks are in
+   `docs/azure-environment.md`.
 3. **Log Analytics workspace** in the same region; set retention to 30 days
    and `immediatePurgeDataOn30Days` to `true` [13].
 4. **Container Apps environment** with `--logs-destination log-analytics` and
@@ -562,11 +576,12 @@ the owner has used both before they are needed.
 | Q1 | Image registry? | GHCR, public package. |
 | Q2 | Should CI publish an image on every push to `main`? | Yes, publish only, no automatic deployment. The `.github` change is a separate PR. The first deployment may be done by hand. |
 | Q3 | Key Vault now? | No. Container Apps secrets for the allow-list; Key Vault when the first real secret (for example the RDW app token) is added. |
-| Q4 | Region? | West Europe (`westeurope`), physical location the Netherlands, geography Europe, paired region North Europe (Ireland) [29]. |
+| Q4 | Region? | West Europe (`westeurope`), physical location the Netherlands, geography Europe, paired region North Europe (Ireland) [29]. **Changed 2026-10-06:** West Europe refused the new subscription (`LocationIneligible`), so the owner chose North Europe (`northeurope`, Ireland), which ADR-005 allows. See `docs/azure-environment.md`. |
 | Q5 | Budget amount and alerts? | 10 euro per month; actual cost at 50/80/100%, forecast at 100%. |
 | Q6 | Store logs? | Log Analytics, 30 days, immediate purge; no HTTP logs. |
 | Q7 | Accept cold starts? | Yes, minimum 0 replicas. Revisit if it bothers users. |
 | Q8 | Custom domain? | No; use the default Container Apps address. |
+| Q9 | May Claude run Azure commands? (added 2026-10-06) | Yes, through the owner's local CLI session only, and only after asking for and receiving explicit approval for each action. No Azure role or credential for Claude. See "Owner account and subscription access". |
 
 ## Consequences
 
