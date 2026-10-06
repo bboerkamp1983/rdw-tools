@@ -2,9 +2,6 @@
 
 .NET 10 / C# solution (`RdwTools.slnx`) for RDW open data (dataset `m9d7-ebf2`, "Gekentekende voertuigen", Socrata/SODA API).
 
-- `src/Rdw.Core`: all RDW logic (class library)
-- `src/Rdw.Cli`: command-line tool, input/output only
-- `tests/Rdw.Core.Tests`: xUnit tests
 - Planned: REST API on top of Core, maybe a web UI, more datasets (APK, fuel, recalls), caching, Docker.
 
 ## Architecture rules
@@ -17,8 +14,6 @@
 
 ## Commands
 
-- Build: `dotnet build`
-- Test: `dotnet test` (all tests must pass)
 - Run the CLI: `dotnet run --project src/Rdw.Cli -- kenteken X998ZG`
 
 ## Workflow
